@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+<meta name="theme-color" content="#0A0D12">
+<title>BRIM · Incendiary Lineups</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root{
+    --bg:#0A0D12; --surface:#10151B; --surface-2:#171E26; --surface-3:#1E2833;
+    --line:#2A3542; --line-bright:#3A4756;
+    --amber:#FF7A1A; --amber-2:#FFB066; --amber-dim:rgba(255,122,26,.14);
+    --red:#FF4655; --red-2:#FF7480; --red-dim:rgba(255,70,85,.14);
+    --text:#EAF0F6; --text-dim:#93A1B0; --text-faint:#5B6773; --steel:#5A6675;
+    --font-display:'Oswald','Bebas Neue','Arial Narrow',sans-serif;
+    --font-mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+    --font-body:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--font-body);
+    background-image:linear-gradient(var(--surface) 1px,transparent 1px),linear-gradient(90deg,var(--surface) 1px,transparent 1px);
+    background-size:44px 44px; background-position:center;
+    min-height:100dvh; overflow-x:hidden;
+  }
+  .app{max-width:900px;margin:0 auto;padding:0 14px 90px;position:relative}
+
+  /* ---------- Header ---------- */
+  header{position:sticky;top:0;z-index:40;padding-top:14px;background:linear-gradient(var(--bg) 72%,transparent)}
+  .bar{
+    display:flex;align-items:center;gap:12px;background:var(--surface-2);
+    border:1px solid var(--line);padding:11px 14px;position:relative;
+    clip-path:polygon(0 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%);
+  }
+  .brand{display:flex;align-items:baseline;gap:9px;flex:1;min-width:0}
+  .mark{
+    width:22px;height:22px;flex:none;position:relative;transform:translateY(3px);
+    background:conic-gradient(from 45deg,var(--amber),var(--red),var(--amber));
+    clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);
+  }
+  .mark::after{content:"";position:absolute;inset:5px;background:var(--surface-2);clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
+  .brand h1{font-family:var(--font-display);font-weight:700;font-size:20px;letter-spacing:.08em;line-height:1;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .brand h1 span{color:var(--amber)}
+  .brand .sub{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.22em;color:var(--text-faint);white-space:nowrap;display:none}
+  @media(min-width:560px){.brand .sub{display:inline}}
+  .hbtns{display:flex;gap:8px;flex:none}
+  .icon-btn{
+    font-family:var(--font-mono);font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+    background:var(--surface-3);color:var(--text-dim);border:1px solid var(--line-bright);
+    padding:9px 12px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.15s;white-space:nowrap;
+  }
+  .icon-btn:hover{color:var(--text);border-color:var(--steel)}
+  .icon-btn.on{background:var(--amber);color:#1a0e02;border-color:var(--amber)}
+  .icon-btn svg{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none}
+
+  /* edit hazard strip */
+  .edit-strip{
+    height:0;overflow:hidden;transition:height .2s;margin-top:8px;
+    background:repeating-linear-gradient(45deg,var(--amber) 0 12px,#1a0e02 12px 24px);
+    border:1px solid var(--amber);border-top:none;opacity:.9;
+    clip-path:polygon(0 0,100% 0,100% 100%,10px 100%,0 calc(100% - 10px));
+  }
+  body.editing .edit-strip{height:24px}
+  .edit-strip span{font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:.3em;color:#1a0e02;background:var(--amber);padding:5px 12px;text-transform:uppercase}
+
+  /* ---------- Map tabs ---------- */
+  .tabs-wrap{margin-top:12px;position:relative}
+  .tabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{
+    font-family:var(--font-display);font-weight:600;font-size:15px;letter-spacing:.1em;text-transform:uppercase;
+    background:var(--surface);color:var(--text-faint);border:1px solid var(--line);
+    padding:8px 15px;cursor:pointer;white-space:nowrap;flex:none;transition:.15s;position:relative;
+  }
+  .tab:hover{color:var(--text-dim)}
+  .tab.active{color:var(--text);border-color:var(--amber);background:var(--amber-dim)}
+  .tab.active::after{content:"";position:absolute;left:0;bottom:-1px;height:2px;width:100%;background:var(--amber)}
+  .tab .cnt{font-family:var(--font-mono);font-size:9px;color:var(--text-faint);margin-left:7px;vertical-align:2px}
+  .tab.active .cnt{color:var(--amber)}
+  .tab-add{font-family:var(--font-mono);font-weight:700;font-size:16px;padding:8px 14px;color:var(--amber);border-style:dashed}
+
+  /* ---------- Map viewport ---------- */
+  .stage{margin-top:14px}
+  .viewport{
+    position:relative;background:var(--surface);border:1px solid var(--line-bright);
+    padding:14px;overflow:hidden;
+  }
+  .viewport::before,.viewport::after,.corner{pointer-events:none;position:absolute;width:20px;height:20px;z-index:6}
+  .viewport::before{top:6px;left:6px;border-top:2px solid var(--amber);border-left:2px solid var(--amber)}
+  .viewport::after{top:6px;right:6px;border-top:2px solid var(--amber);border-right:2px solid var(--amber)}
+  .corner.bl{bottom:6px;left:6px;border-bottom:2px solid var(--amber);border-left:2px solid var(--amber)}
+  .corner.br{bottom:6px;right:6px;border-bottom:2px solid var(--amber);border-right:2px solid var(--amber)}
+  .map-box{position:relative;width:100%;margin:0 auto;line-height:0;touch-action:pan-y}
+  .map-box.placing{cursor:crosshair}
+  .map-box img.radar{display:block;width:100%;height:auto;user-select:none;-webkit-user-drag:none;filter:saturate(1.05) contrast(1.03)}
+  .scan{position:absolute;inset:0;pointer-events:none;z-index:5;mix-blend-mode:overlay;opacity:.5;
+    background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.35) 3px 4px)}
+  /* connector svg */
+  .links{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;overflow:visible}
+  .links line{stroke:var(--amber);stroke-width:1.4;stroke-dasharray:3 3;opacity:.55;
+    stroke-dashoffset:0;animation:dash 14s linear infinite}
+  @keyframes dash{to{stroke-dashoffset:-100}}
+
+  /* markers */
+  .marker{position:absolute;transform:translate(-50%,-50%);z-index:3;cursor:pointer;transition:opacity .2s,filter .2s}
+  .marker:focus-visible{outline:2px solid var(--amber-2);outline-offset:3px}
+  /* plant (spike) */
+  .m-plant .glyph{
+    width:26px;height:26px;position:relative;display:grid;place-items:center;
+    background:var(--red-dim);border:2px solid var(--red);
+    clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);transition:.18s;
+  }
+  .m-plant .glyph::after{content:"";width:7px;height:7px;background:var(--red);clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
+  .m-plant .lbl{
+    position:absolute;top:calc(100% + 4px);left:50%;transform:translateX(-50%);
+    font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--red-2);background:rgba(10,13,18,.82);padding:2px 6px;white-space:nowrap;border:1px solid rgba(255,70,85,.4);
+  }
+  .m-plant.armed{z-index:5}
+  .m-plant.armed .glyph{background:var(--red);box-shadow:0 0 0 4px var(--red-dim),0 0 22px rgba(255,70,85,.6)}
+  .m-plant.armed .glyph::after{background:#fff}
+  .m-plant.armed::before{content:"";position:absolute;top:50%;left:50%;width:26px;height:26px;transform:translate(-50%,-50%) rotate(45deg);
+    border:1.5px solid var(--red);animation:ping 1.6s ease-out infinite;pointer-events:none}
+  @keyframes ping{0%{opacity:.9;width:26px;height:26px}100%{opacity:0;width:64px;height:64px}}
+  .m-plant.dimmed .glyph{background:transparent;border-color:var(--steel)}
+  .m-plant.dimmed .glyph::after{background:var(--steel)}
+  .m-plant.dimmed{opacity:.4;filter:grayscale(.6)}
+  .m-plant.dimmed .lbl{display:none}
+  /* firing position */
+  .m-fire{animation:pop .28s cubic-bezier(.2,1.4,.4,1)}
+  @keyframes pop{from{opacity:0;transform:translate(-50%,-50%) scale(.4)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+  .m-fire .glyph{width:30px;height:30px;position:relative;display:grid;place-items:center}
+  .m-fire .ring{position:absolute;inset:0;border:2px solid var(--amber);border-radius:50%;background:var(--amber-dim)}
+  .m-fire .ring::before,.m-fire .ring::after{content:"";position:absolute;background:var(--amber)}
+  .m-fire .ring::before{left:50%;top:-5px;width:2px;height:9px;transform:translateX(-50%)}
+  .m-fire .ring::after{left:50%;bottom:-5px;width:2px;height:9px;transform:translateX(-50%)}
+  .m-fire .num{font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--amber-2);z-index:1}
+  .m-fire:hover .ring{background:var(--amber);}
+  .m-fire:hover .num{color:#1a0e02}
+  .m-fire .side{position:absolute;left:50%;top:-3px;width:9px;height:2px;background:var(--amber);transform-origin:left;transform:translateX(4px);display:none}
+
+  .drag-hint{position:absolute;top:calc(100% + 3px);left:50%;transform:translateX(-50%);font-family:var(--font-mono);font-size:8px;letter-spacing:.1em;color:var(--text-faint);white-space:nowrap;display:none}
+  body.editing .marker .drag-hint{display:block}
+  body.editing .marker{cursor:grab}
+  body.editing .marker.grabbing{cursor:grabbing}
+
+  /* readout */
+  .readout{
+    display:flex;align-items:center;gap:12px;margin-top:12px;padding:11px 14px;
+    background:var(--surface-2);border:1px solid var(--line);flex-wrap:wrap;
+    font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;
+  }
+  .readout .dot{width:8px;height:8px;flex:none;background:var(--steel);clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
+  .readout.armed .dot{background:var(--red);box-shadow:0 0 10px var(--red)}
+  .readout .status{color:var(--text-dim);flex:1;min-width:120px}
+  .readout .status b{color:var(--text);font-weight:700}
+  .readout .status .hi{color:var(--amber)}
+  .disarm{font-family:var(--font-mono);font-size:9.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+    background:transparent;border:1px solid var(--line-bright);color:var(--text-dim);padding:7px 11px;cursor:pointer;display:none}
+  .disarm:hover{border-color:var(--red);color:var(--red-2)}
+  .readout.armed .disarm{display:block}
+
+  /* edit action row */
+  .edit-actions{display:none;gap:8px;margin-top:12px;flex-wrap:wrap}
+  body.editing .edit-actions{display:flex}
+  .act{
+    font-family:var(--font-mono);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+    background:var(--surface-2);border:1px solid var(--line-bright);color:var(--text);padding:10px 13px;cursor:pointer;
+    display:flex;align-items:center;gap:7px;transition:.15s;flex:1;justify-content:center;min-width:140px;
+  }
+  .act:hover:not(:disabled){border-color:var(--amber)}
+  .act:disabled{opacity:.4;cursor:not-allowed}
+  .act .k{width:14px;height:14px;display:grid;place-items:center;font-size:13px;line-height:1}
+  .act.plant .k{color:var(--red)}
+  .act.fire .k{color:var(--amber)}
+
+  /* placement banner */
+  .placebar{
+    position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:70;
+    display:none;align-items:center;gap:12px;background:var(--amber);color:#1a0e02;
+    padding:12px 18px;font-family:var(--font-mono);font-size:12px;font-weight:700;letter-spacing:.05em;
+    box-shadow:0 8px 30px rgba(0,0,0,.5);max-width:92vw;
+    clip-path:polygon(0 0,100% 0,100% 100%,12px 100%,0 calc(100% - 12px));
+  }
+  .placebar.show{display:flex}
+  .placebar button{background:#1a0e02;color:var(--amber);border:none;font-family:var(--font-mono);font-weight:700;font-size:11px;padding:6px 10px;cursor:pointer;letter-spacing:.1em}
+
+  /* ---------- Empty states ---------- */
+  .empty{
+    text-align:center;padding:48px 22px;border:1px dashed var(--line-bright);background:var(--surface);margin-top:14px;
+  }
+  .empty .big{font-family:var(--font-display);font-weight:600;font-size:22px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim)}
+  .empty p{font-family:var(--font-mono);font-size:11.5px;color:var(--text-faint);margin:10px auto 20px;max-width:340px;line-height:1.7;letter-spacing:.02em}
+  .empty .row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  .btn-primary{
+    font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+    background:var(--amber);color:#1a0e02;border:none;padding:12px 18px;cursor:pointer;transition:.15s;
+    clip-path:polygon(0 0,100% 0,100% 100%,10px 100%,0 calc(100% - 10px));
+  }
+  .btn-primary:hover{background:var(--amber-2)}
+  .btn-ghost{
+    font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+    background:transparent;color:var(--text-dim);border:1px solid var(--line-bright);padding:12px 18px;cursor:pointer;transition:.15s;
+  }
+  .btn-ghost:hover{border-color:var(--steel);color:var(--text)}
+
+  /* ---------- Modals ---------- */
+  .scrim{position:fixed;inset:0;background:rgba(5,7,10,.78);backdrop-filter:blur(3px);z-index:100;display:none;
+    align-items:flex-end;justify-content:center;padding:0}
+  @media(min-width:640px){.scrim{align-items:center;padding:20px}}
+  .scrim.show{display:flex;animation:fade .18s}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .sheet{
+    background:var(--surface);border:1px solid var(--line-bright);width:100%;max-width:560px;max-height:90dvh;overflow-y:auto;
+    animation:rise .22s cubic-bezier(.2,.9,.3,1);
+  }
+  @keyframes rise{from{transform:translateY(24px);opacity:.6}to{transform:translateY(0);opacity:1}}
+  .sheet-head{
+    position:sticky;top:0;background:var(--surface-2);border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:10px;padding:14px 16px;z-index:2;
+  }
+  .sheet-head .tag{font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--amber);padding:3px 8px;border:1px solid var(--amber);background:var(--amber-dim)}
+  .sheet-head .tag.red{color:var(--red-2);border-color:var(--red);background:var(--red-dim)}
+  .sheet-head h3{font-family:var(--font-display);font-weight:600;font-size:19px;letter-spacing:.04em;text-transform:uppercase;flex:1;line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .x{background:transparent;border:1px solid var(--line-bright);color:var(--text-dim);width:32px;height:32px;flex:none;cursor:pointer;font-size:16px;line-height:1;display:grid;place-items:center}
+  .x:hover{border-color:var(--red);color:var(--red-2)}
+  .sheet-body{padding:16px}
+
+  /* gallery (viewer) */
+  .gallery{display:flex;gap:0;overflow-x:auto;scroll-snap-type:x mandatory;background:#05070a;border:1px solid var(--line);scrollbar-width:none}
+  .gallery::-webkit-scrollbar{display:none}
+  .gallery .slide{flex:none;width:100%;scroll-snap-align:center;display:grid;place-items:center;min-height:180px;cursor:zoom-in;position:relative}
+  .gallery .slide img{width:100%;height:auto;max-height:56dvh;object-fit:contain;display:block}
+  .gallery .noimg{color:var(--text-faint);font-family:var(--font-mono);font-size:11px;padding:40px}
+  .dots{display:flex;gap:6px;justify-content:center;margin-top:10px}
+  .dots i{width:7px;height:7px;background:var(--line-bright);transition:.15s;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
+  .dots i.on{background:var(--amber);width:16px;clip-path:none}
+  .swipehint{text-align:center;font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;color:var(--text-faint);margin-top:8px;text-transform:uppercase}
+  .notes{margin-top:16px}
+  .notes .h{font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:.2em;color:var(--text-faint);text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+  .notes .h::after{content:"";flex:1;height:1px;background:var(--line)}
+  .notes .body{font-family:var(--font-body);font-size:14.5px;line-height:1.7;color:var(--text);white-space:pre-wrap;word-break:break-word}
+  .notes .body.empty-note{color:var(--text-faint);font-style:italic;font-size:13px}
+  /* agent filter bar */
+  .agentbar{display:flex;gap:8px;overflow-x:auto;padding:11px 0 2px;scrollbar-width:none}
+  .agentbar::-webkit-scrollbar{display:none}
+  .agent-chip{--ac:var(--steel);font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+    background:var(--surface);color:var(--text-faint);border:1px solid var(--line);padding:7px 12px;cursor:pointer;white-space:nowrap;flex:none;
+    display:flex;align-items:center;gap:7px;transition:.15s}
+  .agent-chip:hover{color:var(--text-dim)}
+  .agent-chip.active{color:var(--text);border-color:var(--ac);background:color-mix(in srgb,var(--ac) 15%,transparent)}
+  .agent-chip .ad{width:8px;height:8px;flex:none;border-radius:50%;background:var(--ac)}
+  .agent-chip .ad.all{background:linear-gradient(135deg,var(--amber),var(--red))}
+  .agent-chip .acnt{font-family:var(--font-mono);font-size:9px;color:var(--text-faint)}
+  .agent-chip.active .acnt{color:var(--ac)}
+  .m-plant .lbl-agent{display:block;font-size:7.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:1px;line-height:1}
+
+  /* lineup image grid (1-4 shots, no cropping) */
+  .sheet.wide{max-width:860px}
+  .shots{display:grid;gap:8px;padding:8px;background:#05070a;border:1px solid var(--line)}
+  .shots .cell{display:flex;align-items:center;justify-content:center;overflow:hidden;min-width:0}
+  .shots .cell img{width:100%;height:auto;max-height:78dvh;object-fit:contain;display:block;cursor:zoom-in}
+  .shots.n2,.shots.n3,.shots.n4{grid-template-columns:1fr 1fr}
+  .shots.n3 .cell3{grid-column:1 / -1}
+  .shots.n3 .cell3 img{width:50%}
+  .shots .noimg{padding:44px 20px;text-align:center;color:var(--text-faint);font-family:var(--font-mono);font-size:11px;grid-column:1 / -1}
+  @media(max-width:520px){ .shots .cell img{max-height:none} .shots.n3 .cell3 img{width:100%} }
+  .meta-chip{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);display:inline-flex;align-items:center;gap:6px;margin-top:14px;padding:5px 9px;background:var(--surface-2);border:1px solid var(--line)}
+  .meta-chip b{color:var(--red-2)}
+
+  /* forms */
+  .field{margin-bottom:16px}
+  .field label{display:block;font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--text-dim);margin-bottom:7px}
+  .field input[type=text],.field textarea{
+    width:100%;background:var(--bg);border:1px solid var(--line-bright);color:var(--text);
+    font-family:var(--font-body);font-size:14px;padding:11px 12px;transition:.15s;
+  }
+  .field input[type=text]:focus,.field textarea:focus{outline:none;border-color:var(--amber)}
+  .field textarea{min-height:110px;resize:vertical;line-height:1.6}
+  .field .hint{font-family:var(--font-mono);font-size:9.5px;color:var(--text-faint);margin-top:6px;letter-spacing:.02em}
+
+  .uploader{border:1px dashed var(--line-bright);padding:14px;text-align:center;cursor:pointer;transition:.15s;background:var(--surface-2)}
+  .uploader:hover{border-color:var(--amber);background:var(--amber-dim)}
+  .uploader .u-ico{font-size:22px;color:var(--amber)}
+  .uploader .u-txt{font-family:var(--font-mono);font-size:10.5px;color:var(--text-dim);margin-top:6px;letter-spacing:.04em}
+  .thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px;margin-top:12px}
+  .thumb{position:relative;aspect-ratio:1;background:#05070a;border:1px solid var(--line)}
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .thumb button{position:absolute;top:2px;right:2px;width:20px;height:20px;background:rgba(10,13,18,.85);border:1px solid var(--red);color:var(--red-2);cursor:pointer;font-size:12px;line-height:1;display:grid;place-items:center}
+  .thumb .badge{position:absolute;bottom:2px;left:2px;font-family:var(--font-mono);font-size:8px;background:rgba(10,13,18,.8);color:var(--text-dim);padding:1px 4px}
+
+  .form-actions{display:flex;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
+  .form-actions .btn-primary{flex:1;text-align:center}
+  .del-btn{font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+    background:transparent;color:var(--red-2);border:1px solid var(--red);padding:12px 16px;cursor:pointer;transition:.15s}
+  .del-btn:hover{background:var(--red);color:#fff}
+  .modal-note{font-family:var(--font-mono);font-size:11px;line-height:1.7;color:var(--text-dim);margin-bottom:14px;letter-spacing:.02em}
+  .dual-btn{display:flex;gap:10px;flex-wrap:wrap}
+  .dual-btn button{flex:1;text-align:center;min-width:150px}
+  .drive-status{display:flex;align-items:center;gap:9px;font-family:var(--font-mono);font-size:11px;color:var(--text-dim);padding:11px 12px;background:var(--surface-2);border:1px solid var(--line)}
+  .drive-status .dot2{width:8px;height:8px;flex:none;border-radius:50%;background:var(--steel)}
+  .drive-status.on .dot2{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+  .version-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
+  .version-row:last-child{border-bottom:none}
+  .version-row b{color:var(--amber-2);font-family:var(--font-mono);font-size:12.5px}
+  .version-row .vdate{display:block;font-family:var(--font-mono);font-size:9.5px;color:var(--text-faint);margin-top:3px}
+  .btn-ghost.small{padding:7px 11px;font-size:9.5px;flex:none;min-width:auto}
+  .backlink{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);background:none;border:none;cursor:pointer;padding:0 0 10px;display:block}
+  .code-area{width:100%;background:#05070a;border:1px solid var(--line-bright);color:var(--amber-2);
+    font-family:var(--font-mono);font-size:11px;line-height:1.5;padding:11px 12px;min-height:150px;resize:vertical;word-break:break-all}
+  .code-area:focus{outline:none;border-color:var(--amber)}
+
+  /* lightbox */
+  .lightbox{position:fixed;inset:0;background:rgba(2,3,5,.94);z-index:200;display:none;align-items:center;justify-content:center;cursor:zoom-out;padding:16px}
+  .lightbox.show{display:flex}
+  .lightbox img{max-width:100%;max-height:92dvh;object-fit:contain}
+  .lightbox .lx-close{position:absolute;top:16px;right:16px;width:40px;height:40px;background:var(--surface-2);border:1px solid var(--line-bright);color:var(--text);font-size:18px;cursor:pointer}
+
+  /* data menu */
+  .datamenu{display:none;position:fixed;top:64px;right:14px;z-index:90;background:var(--surface-2);border:1px solid var(--line-bright);min-width:210px;
+    clip-path:polygon(0 0,100% 0,100% 100%,10px 100%,0 calc(100% - 10px))}
+  .datamenu.show{display:block;animation:fade .15s}
+  .datamenu button{display:flex;align-items:center;gap:10px;width:100%;background:transparent;border:none;border-bottom:1px solid var(--line);color:var(--text-dim);
+    font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;padding:12px 14px;cursor:pointer;text-align:left;transition:.12s}
+  .datamenu button:last-child{border-bottom:none}
+  .datamenu button:hover{background:var(--surface-3);color:var(--text)}
+  .datamenu button.danger:hover{color:var(--red-2)}
+  .datamenu .meter{padding:11px 14px;border-bottom:1px solid var(--line)}
+  .datamenu .meter .t{font-family:var(--font-mono);font-size:8.5px;letter-spacing:.16em;color:var(--text-faint);text-transform:uppercase;margin-bottom:6px}
+  .datamenu .meter .track{height:5px;background:var(--bg);overflow:hidden}
+  .datamenu .meter .fill{height:100%;background:var(--amber);width:0;transition:width .3s}
+  .datamenu .meter .v{font-family:var(--font-mono);font-size:9px;color:var(--text-dim);margin-top:5px}
+
+  /* toast */
+  .toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);z-index:150;background:var(--surface-3);border:1px solid var(--line-bright);
+    color:var(--text);font-family:var(--font-mono);font-size:11.5px;letter-spacing:.03em;padding:12px 16px;opacity:0;transition:.25s;pointer-events:none;max-width:90vw;text-align:center}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  .toast.err{border-color:var(--red)}
+  .toast .b{color:var(--amber)}
+
+  /* footer note */
+  .foot{font-family:var(--font-mono);font-size:9px;letter-spacing:.1em;color:var(--text-faint);text-align:center;margin-top:26px;line-height:1.9}
+  .foot b{color:var(--text-dim)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="bar">
+      <div class="brand">
+        <div class="mark"></div>
+        <h1>BRIM<span>·</span>LINEUPS</h1>
+        <span class="sub">INCENDIARY // MOLLY CHEATSHEET</span>
+      </div>
+      <div class="hbtns">
+        <button class="icon-btn" id="editBtn" title="Toggle edit mode">
+          <svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M14 6l4 4"/></svg>
+          EDIT
+        </button>
+        <button class="icon-btn" id="dataBtn" title="Save / load data">
+          <svg viewBox="0 0 24 24"><path d="M4 4h12l4 4v12H4z"/><path d="M8 4v6h8"/><path d="M8 20v-6h8v6"/></svg>
+          DATA
+        </button>
+      </div>
+    </div>
+    <div class="edit-strip"><span>EDIT MODE — TAP MAP TO PLACE MARKERS</span></div>
+  </header>
+
+  <div class="datamenu" id="dataMenu">
+    <div class="meter">
+      <div class="t">Local storage used</div>
+      <div class="track"><div class="fill" id="meterFill"></div></div>
+      <div class="v" id="meterVal">–</div>
+    </div>
+    <button id="driveMenuBtn"><span>☁</span> Cloud sync (Drive)</button>
+    <button id="exportBtn"><span>⭳</span> Export backup (.json)</button>
+    <button id="importBtn"><span>⭱</span> Import backup (.json)</button>
+    <button id="demoBtn"><span>◈</span> Load demo layout</button>
+    <button id="wipeBtn" class="danger"><span>✕</span> Erase everything</button>
+  </div>
+
+  <div class="tabs-wrap">
+    <div class="tabs" id="tabs"></div>
+  </div>
+
+  <div class="agentbar" id="agentBar"></div>
+
+  <div class="stage" id="stage"></div>
+
+  <div class="foot">
+    <b>SPIKE PLANT</b> ◆ RED &nbsp;·&nbsp; <b>FIRING POSITION</b> ✛ AMBER<br>
+    DATA STAYS ON THIS DEVICE — EXPORT A BACKUP BEFORE SWITCHING PHONES
+  </div>
+</div>
+
+<!-- placement banner -->
+<div class="placebar" id="placeBar">
+  <span id="placeTxt">Tap the map to place</span>
+  <button id="placeCancel">CANCEL</button>
+</div>
+
+<!-- Lineup VIEWER -->
+<div class="scrim" id="viewScrim">
+  <div class="sheet wide">
+    <div class="sheet-head">
+      <span class="tag">FIRING POS</span>
+      <h3 id="viewTitle">Lineup</h3>
+      <button class="x" data-close="viewScrim">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div class="shots" id="viewShots"></div>
+      <div class="meta-chip" id="viewMeta"></div>
+      <div class="notes">
+        <div class="h">Setup notes</div>
+        <div class="body" id="viewNotes"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MAP editor -->
+<div class="scrim" id="mapScrim">
+  <div class="sheet">
+    <div class="sheet-head">
+      <span class="tag">MAP</span>
+      <h3 id="mapModalTitle">Add map</h3>
+      <button class="x" data-close="mapScrim">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div class="field">
+        <label>Map name</label>
+        <input type="text" id="mapName" placeholder="e.g. Ascent" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Radar / minimap image</label>
+        <div class="uploader" id="mapUploader">
+          <div class="u-ico">⭱</div>
+          <div class="u-txt">TAP TO UPLOAD RADAR IMAGE</div>
+        </div>
+        <input type="file" id="mapFile" accept="image/*" hidden>
+        <div id="mapPreview" style="margin-top:12px"></div>
+        <div class="hint">Grab a top-down radar image of the map and drop it here. Gets resized automatically.</div>
+      </div>
+      <div class="form-actions">
+        <button class="btn-primary" id="mapSave">Save map</button>
+        <button class="del-btn" id="mapDelete" style="display:none">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PLANT editor -->
+<div class="scrim" id="plantScrim">
+  <div class="sheet">
+    <div class="sheet-head">
+      <span class="tag red">SPIKE PLANT</span>
+      <h3 id="plantModalTitle">Plant spot</h3>
+      <button class="x" data-close="plantScrim">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div class="field">
+        <label>Plant spot name</label>
+        <input type="text" id="plantName" placeholder="e.g. A Site — Default" autocomplete="off">
+        <div class="hint">Where you planted the spike. Firing positions live under this spot.</div>
+      </div>
+      <div class="field">
+        <label>Agent</label>
+        <input type="text" id="plantAgent" list="agentList" placeholder="e.g. Brimstone" autocomplete="off">
+        <div class="hint">Which agent's lineups this spot is for — used by the agent filter above the map. Type any agent.</div>
+      </div>
+      <datalist id="agentList">
+        <option value="Brimstone"></option><option value="Viper"></option><option value="Omen"></option>
+        <option value="Astra"></option><option value="Harbor"></option><option value="Clove"></option>
+        <option value="KAY/O"></option><option value="Sova"></option><option value="Fade"></option>
+        <option value="Breach"></option><option value="Skye"></option><option value="Gekko"></option>
+        <option value="Killjoy"></option><option value="Cypher"></option><option value="Deadlock"></option>
+        <option value="Vyse"></option><option value="Sage"></option><option value="Raze"></option>
+        <option value="Phoenix"></option><option value="Tejo"></option><option value="Yoru"></option>
+      </datalist>
+      <div class="form-actions">
+        <button class="btn-primary" id="plantSave">Save spot</button>
+        <button class="del-btn" id="plantDelete" style="display:none">Delete spot</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LINEUP editor -->
+<div class="scrim" id="lineupScrim">
+  <div class="sheet">
+    <div class="sheet-head">
+      <span class="tag">FIRING POS</span>
+      <h3 id="lineupModalTitle">Firing position</h3>
+      <button class="x" data-close="lineupScrim">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div class="field">
+        <label>Position name</label>
+        <input type="text" id="lineupName" placeholder="e.g. From A Main box" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Lineup screenshots</label>
+        <div class="uploader" id="lineupUploader">
+          <div class="u-ico">⭱</div>
+          <div class="u-txt">TAP TO ADD SHOTS (crosshair placement, landing spot…)</div>
+        </div>
+        <input type="file" id="lineupFile" accept="image/*" multiple hidden>
+        <div class="thumbs" id="lineupThumbs"></div>
+      </div>
+      <div class="field">
+        <label>Setup notes</label>
+        <textarea id="lineupNotes" placeholder="Stand here, aim at… , jump-throw / standing throw, etc."></textarea>
+      </div>
+      <div class="form-actions">
+        <button class="btn-primary" id="lineupSave">Save position</button>
+        <button class="del-btn" id="lineupDelete" style="display:none">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT / backup -->
+<div class="scrim" id="exportScrim">
+  <div class="sheet">
+    <div class="sheet-head">
+      <span class="tag">BACKUP</span>
+      <h3>Export data</h3>
+      <button class="x" data-close="exportScrim">✕</button>
+    </div>
+    <div class="sheet-body">
+      <p class="modal-note">Back up your lineups or move them to another device.</p>
+      <div class="dual-btn">
+        <button class="btn-primary" id="dlFileBtn">⭳ Download file</button>
+        <button class="btn-ghost" id="copyJsonBtn">⧉ Copy to clipboard</button>
+      </div>
+      <div class="field" style="margin-top:16px">
+        <label>Backup text</label>
+        <textarea id="exportText" class="code-area" readonly spellcheck="false"></textarea>
+        <div class="hint">Download works when this page runs as a real file. If it's blocked (e.g. inside a preview), tap <b>Copy</b> and either save the text as a <b>.json</b> file, or paste it straight into Import on your other device.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT / restore -->
+<div class="scrim" id="importScrim">
+  <div class="sheet">
+    <div class="sheet-head">
+      <span class="tag">RESTORE</span>
+      <h3>Import data</h3>
+      <button class="x" data-close="importScrim">✕</button>
+    </div>
+    <div class="sheet-body">
+      <p class="modal-note" style="color:var(--red-2)">Importing replaces everything currently on this device.</p>
+      <div class="dual-btn">
+        <button class="btn-ghost" id="chooseFileBtn">⭱ Choose backup file</button>
+      </div>
+      <div class="field" style="margin-top:16px">
+        <label>Or paste backup text</label>
+        <textarea id="importText" class="code-area" spellcheck="false" placeholder="Paste the exported backup text here…"></textarea>
+      </div>
+      <div class="form-actions">
+        <button class="btn-primary" id="loadPastedBtn" style="flex:1;text-align:center">Load pasted data</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DRIVE sync -->
+<div class="scrim" id="driveScrim">
+  <div class="sheet">
+    <div class="sheet-head">
+      <span class="tag">CLOUD</span>
+      <h3>Drive sync</h3>
+      <button class="x" data-close="driveScrim">✕</button>
+    </div>
+    <div class="sheet-body" id="driveBody"></div>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox">
+  <button class="lx-close" id="lxClose">✕</button>
+  <img id="lxImg" alt="">
+</div>
+
+<input type="file" id="importFile" accept="application/json,.json" hidden>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ============================================================
+   BRIM LINEUPS — single-file tactical cheatsheet
+   Data model:
+   state = { maps:[ {id,name,image, plants:[ {id,name,x,y,
+                     lineups:[ {id,name,x,y,images:[],notes} ] } ] } ] }
+   ============================================================ */
+const STORE_KEY = "brim_lineups_v1";
+const uid = () => Math.random().toString(36).slice(2,9);
+
+let state = { maps:[] };
+let ui = {
+  activeMapId:null,
+  armedPlantId:null,
+  pending:null,          // {type:'plant'|'lineup'}
+  editMapId:null,
+  editPlantId:null,
+  editLineupId:null,
+  tmpMapImg:null,        // staged image for map modal
+  tmpImages:[],          // staged images for lineup modal
+  activeAgent:"All",     // which agent's lineups are shown
+  lastAgent:"Brimstone", // default agent for newly placed plant spots
+};
+
+/* ---------- IndexedDB storage layer ----------
+   Swapped from localStorage (hard 5-10MB browser cap) to IndexedDB,
+   which allows storage in the hundreds of MB to GB range (tied to
+   the device's free disk space, not a fixed number). Old data saved
+   under the localStorage key is auto-migrated on first load. */
+const DB_NAME="brim_lineups_db", DB_STORE="kv", DB_KEY="state";
+let _dbPromise=null;
+function idbOpen(){
+  if(_dbPromise) return _dbPromise;
+  _dbPromise=new Promise((resolve,reject)=>{
+    if(!("indexedDB" in window)){ reject(new Error("no-indexeddb")); return; }
+    const req=indexedDB.open(DB_NAME,1);
+    req.onupgradeneeded=()=>{ req.result.createObjectStore(DB_STORE); };
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error||new Error("idb-open-failed"));
+  });
+  return _dbPromise;
+}
+function idbGet(key){
+  return idbOpen().then(db=>new Promise((resolve,reject)=>{
+    const tx=db.transaction(DB_STORE,"readonly");
+    const rq=tx.objectStore(DB_STORE).get(key);
+    rq.onsuccess=()=>resolve(rq.result);
+    rq.onerror=()=>reject(rq.error);
+  }));
+}
+function idbSet(key,val){
+  return idbOpen().then(db=>new Promise((resolve,reject)=>{
+    const tx=db.transaction(DB_STORE,"readwrite");
+    tx.objectStore(DB_STORE).put(val,key);
+    tx.oncomplete=()=>resolve(true);
+    tx.onerror=()=>reject(tx.error);
+  }));
+}
+
+/* ---------- persistence ---------- */
+function normalizeState(){
+  (state.maps||[]).forEach(m=>{
+    (m.plants||[]).forEach(p=>{
+      if(!p.agent || !String(p.agent).trim()) p.agent="Brimstone";
+      (p.lineups||[]).forEach(lu=>{
+        if(!Array.isArray(lu.images)) lu.images=[];
+        if(typeof lu.notes!=="string") lu.notes="";
+      });
+    });
+  });
+}
+function persist(){
+  normalizeState();
+  idbSet(DB_KEY, state).then(()=>updateMeter()).catch(err=>{
+    console.error("persist failed", err);
+    // best-effort tiny fallback so at least something survives if IndexedDB is blocked
+    try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){}
+    toast("Couldn't save — export a backup now to be safe", true, 4200);
+    updateMeter();
+  });
+}
+async function loadState(){
+  try{
+    const fromDb=await idbGet(DB_KEY);
+    if(fromDb && Array.isArray(fromDb.maps)){ state=fromDb; return; }
+  }catch(e){ /* IndexedDB unavailable — fall through */ }
+  // one-time migration from the old localStorage-based version
+  try{
+    const raw=localStorage.getItem(STORE_KEY);
+    if(raw){
+      const p=JSON.parse(raw);
+      if(p && Array.isArray(p.maps)){
+        state=p;
+        try{ await idbSet(DB_KEY, state); }catch(e){}
+        try{ localStorage.removeItem(STORE_KEY); }catch(e){}
+        toast("Moved your saved lineups to larger storage ✓");
+      }
+    }
+  }catch(e){ /* corrupt or blocked — start fresh */ }
+}
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const activeMap = () => state.maps.find(m=>m.id===ui.activeMapId) || null;
+const armedPlant = () => { const m=activeMap(); return m ? (m.plants.find(p=>p.id===ui.armedPlantId)||null) : null; };
+const agentOf = p => (p.agent && String(p.agent).trim()) ? p.agent : "Brimstone";
+function agentColor(name){
+  let h=0; const s=String(name); for(let i=0;i<s.length;i++){ h=(h*31+s.charCodeAt(i))>>>0; }
+  return `hsl(${h%360},68%,62%)`;
+}
+function visiblePlants(m){
+  if(!m) return [];
+  if(ui.activeAgent==="All") return m.plants;
+  const f=m.plants.filter(p=>agentOf(p)===ui.activeAgent);
+  return f.length ? f : m.plants; // stale filter (e.g. after map switch) → show all
+}
+function mapAgents(m){ return m ? [...new Set(m.plants.map(agentOf))].sort((a,b)=>a.localeCompare(b)) : []; }
+
+function toast(msg, isErr=false, ms=2400){
+  const t=$("#toast"); t.innerHTML=msg; t.className="toast show"+(isErr?" err":"");
+  clearTimeout(t._t); t._t=setTimeout(()=>{t.className="toast"+(isErr?" err":"")},ms);
+}
+
+/* image resize -> jpeg data url */
+function resizeImage(file, maxDim=1400, quality=0.82){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onerror=()=>rej(new Error("read"));
+    r.onload=()=>{
+      const img=new Image();
+      img.onerror=()=>rej(new Error("decode"));
+      img.onload=()=>{
+        let {width:w,height:h}=img;
+        if(w>maxDim||h>maxDim){ const s=maxDim/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s); }
+        const c=document.createElement("canvas"); c.width=w; c.height=h;
+        const ctx=c.getContext("2d"); ctx.drawImage(img,0,0,w,h);
+        res(c.toDataURL("image/jpeg",quality));
+      };
+      img.src=r.result;
+    };
+    r.readAsDataURL(file);
+  });
+}
+
+/* storage meter */
+async function updateMeter(){
+  const fill=$("#meterFill"), val=$("#meterVal");
+  if(!fill||!val) return;
+  let dataMB=0;
+  try{ dataMB=new Blob([JSON.stringify(state)]).size/1048576; }
+  catch(e){ dataMB=JSON.stringify(state).length/1048576; }
+
+  if(navigator.storage && navigator.storage.estimate){
+    try{
+      const est=await navigator.storage.estimate();
+      const usedMB=(est.usage||0)/1048576, quotaMB=(est.quota||0)/1048576;
+      const pct=quotaMB ? Math.min(100,(usedMB/quotaMB)*100) : 6;
+      fill.style.width=pct+"%";
+      fill.style.background = pct>85 ? "var(--red)" : "var(--amber)";
+      const quotaLabel = quotaMB>=1024 ? (quotaMB/1024).toFixed(1)+" GB" : Math.round(quotaMB)+" MB";
+      val.textContent = `${dataMB.toFixed(1)} MB of lineups · up to ${quotaLabel} available on this device`;
+      return;
+    }catch(e){ /* fall through to generic label */ }
+  }
+  fill.style.width="8%"; fill.style.background="var(--amber)";
+  val.textContent = `${dataMB.toFixed(1)} MB of lineups stored (device storage — hundreds of MB+ typically available)`;
+}
+
+/* ==========================================================
+   RENDER
+   ========================================================== */
+function renderTabs(){
+  const tabs=$("#tabs"); tabs.innerHTML="";
+  state.maps.forEach(m=>{
+    const b=document.createElement("button");
+    b.className="tab"+(m.id===ui.activeMapId?" active":"");
+    const lc=m.plants.reduce((n,p)=>n+p.lineups.length,0);
+    b.innerHTML=`${escapeHtml(m.name)}<span class="cnt">${m.plants.length}◆ ${lc}✛</span>`;
+    b.onclick=()=>{ ui.activeMapId=m.id; ui.armedPlantId=null; ui.activeAgent="All"; renderAll(); };
+    tabs.appendChild(b);
+  });
+  if(document.body.classList.contains("editing")){
+    const add=document.createElement("button");
+    add.className="tab tab-add"; add.textContent="＋"; add.title="Add map";
+    add.onclick=openAddMap;
+    tabs.appendChild(add);
+  }
+}
+
+function renderAgentBar(){
+  const bar=$("#agentBar"); if(!bar) return;
+  const m=activeMap();
+  const agents=mapAgents(m);
+  if(!m || (agents.length<=1 && !document.body.classList.contains("editing"))){
+    bar.style.display="none"; bar.innerHTML=""; return;
+  }
+  bar.style.display="flex"; bar.innerHTML="";
+  const chips=["All", ...agents];
+  chips.forEach(a=>{
+    const isAll=(a==="All");
+    const active = isAll ? (ui.activeAgent==="All" || !agents.includes(ui.activeAgent))
+                         : (ui.activeAgent===a);
+    const c=document.createElement("button");
+    c.className="agent-chip"+(active?" active":"");
+    if(!isAll) c.style.setProperty("--ac", agentColor(a));
+    const count = isAll ? m.plants.length : m.plants.filter(p=>agentOf(p)===a).length;
+    c.innerHTML = `<span class="ad${isAll?' all':''}"></span>${isAll?'ALL':escapeHtml(a)}<span class="acnt">${count}</span>`;
+    c.onclick=()=>{ ui.activeAgent=a; ui.armedPlantId=null; if(!isAll) ui.lastAgent=a; renderAll(); };
+    bar.appendChild(c);
+  });
+}
+
+function renderStage(){
+  const stage=$("#stage"); stage.innerHTML="";
+  const editing=document.body.classList.contains("editing");
+
+  if(state.maps.length===0){
+    stage.appendChild(emptyEl(
+      "NO MAPS YET",
+      "Add a map and upload its radar image to start dropping your Brimstone molly lineups. Not sure? Load the demo to see how it works.",
+      [["Add map","primary",openAddMap],["Load demo","ghost",loadDemo]]
+    ));
+    return;
+  }
+  const m=activeMap();
+  if(!m){ ui.activeMapId=state.maps[0].id; return renderStage(); }
+
+  // viewport
+  const vp=document.createElement("div"); vp.className="viewport";
+  vp.innerHTML='<div class="corner bl"></div><div class="corner br"></div>';
+  const box=document.createElement("div");
+  box.className="map-box"+(ui.pending?" placing":"");
+  box.id="mapBox";
+
+  const img=document.createElement("img");
+  img.className="radar"; img.src=m.image; img.alt=m.name+" radar"; img.draggable=false;
+  box.appendChild(img);
+  box.insertAdjacentHTML("beforeend",'<div class="scan"></div>');
+
+  // connector lines (svg)
+  const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
+  svg.setAttribute("class","links"); svg.setAttribute("viewBox","0 0 100 100");
+  svg.setAttribute("preserveAspectRatio","none");
+  box.appendChild(svg);
+
+  const ap=armedPlant();
+  const visible=visiblePlants(m);
+  const apVisible = ap && visible.indexOf(ap)!==-1;
+  const showAgent = ui.activeAgent==="All";
+  // draw plant markers (filtered by selected agent)
+  visible.forEach(p=>{
+    const mk=document.createElement("button");
+    let cls="marker m-plant";
+    if(apVisible){ cls += (p.id===ap.id) ? " armed" : " dimmed"; }
+    mk.className=cls;
+    mk.style.left=(p.x*100)+"%"; mk.style.top=(p.y*100)+"%";
+    const atag = showAgent ? `<span class="lbl-agent" style="color:${agentColor(agentOf(p))}">${escapeHtml(agentOf(p))}</span>` : "";
+    mk.innerHTML=`<div class="glyph"></div><div class="lbl">${atag}${escapeHtml(p.name)}</div><div class="drag-hint">drag to move</div>`;
+    mk.setAttribute("aria-label","Plant spot: "+agentOf(p)+" "+p.name);
+    attachMarkerHandlers(mk, box, p, "plant");
+    box.appendChild(mk);
+  });
+
+  if(apVisible){
+    ap.lineups.forEach((lu,i)=>{
+      // connector
+      const ln=document.createElementNS("http://www.w3.org/2000/svg","line");
+      ln.setAttribute("x1",(ap.x*100).toFixed(2)); ln.setAttribute("y1",(ap.y*100).toFixed(2));
+      ln.setAttribute("x2",(lu.x*100).toFixed(2)); ln.setAttribute("y2",(lu.y*100).toFixed(2));
+      svg.appendChild(ln);
+      // marker
+      const mk=document.createElement("button");
+      mk.className="marker m-fire";
+      mk.style.left=(lu.x*100)+"%"; mk.style.top=(lu.y*100)+"%";
+      const badge = lu.images && lu.images.length ? `` : ``;
+      mk.innerHTML=`<div class="glyph"><div class="ring"></div><div class="num">${i+1}</div></div><div class="drag-hint">drag to move</div>`;
+      mk.setAttribute("aria-label","Firing position: "+lu.name);
+      attachMarkerHandlers(mk, box, lu, "lineup");
+      box.appendChild(mk);
+    });
+  }
+
+  vp.appendChild(box);
+  stage.appendChild(vp);
+
+  // tap empty map to disarm (view mode only)
+  box.addEventListener("click",(e)=>{
+    if(ui.pending){ handlePlacementClick(e, box); return; }
+    if(e.target===box || e.target===img || e.target.classList.contains("scan")){
+      if(!editing && ui.armedPlantId){ ui.armedPlantId=null; renderAll(); }
+    }
+  });
+
+  // readout
+  const ro=document.createElement("div");
+  ro.className="readout"+(apVisible?" armed":"");
+  const vPlants=visible.length;
+  const vFire=visible.reduce((n,p)=>n+p.lineups.length,0);
+  const agentLabel = ui.activeAgent==="All" ? "" : `<span class="hi">${escapeHtml(ui.activeAgent)}</span> · `;
+  let status;
+  if(apVisible){
+    status=`<span class="status">ARMED · <b>${escapeHtml(ap.name)}</b> — <span class="hi">${ap.lineups.length}</span> firing position${ap.lineups.length!==1?"s":""}${ap.lineups.length?"":" (add some in edit mode)"}</span>`;
+  }else if(vPlants===0){
+    status=`<span class="status">${editing?"Tap “Add plant spot”, then tap the map":"No plant spots yet — switch to edit mode to add them"}</span>`;
+  }else{
+    status=`<span class="status">${agentLabel}<b>${vPlants}</b> plant spot${vPlants!==1?"s":""} · <b>${vFire}</b> lineup${vFire!==1?"s":""} — tap a ◆ to arm</span>`;
+  }
+  ro.innerHTML=`<div class="dot"></div>${status}<button class="disarm" id="disarmBtn">Disarm ◆</button>`;
+  stage.appendChild(ro);
+  const db=$("#disarmBtn"); if(db) db.onclick=()=>{ ui.armedPlantId=null; renderAll(); };
+
+  // edit actions
+  const ea=document.createElement("div"); ea.className="edit-actions";
+  ea.innerHTML=`
+    <button class="act plant" id="addPlant"><span class="k">◆</span> Add plant spot</button>
+    <button class="act fire" id="addFire" ${ap?"":"disabled"}><span class="k">✛</span> ${ap?"Add firing pos to "+shortName(ap.name):"Arm a plant first"}</button>
+    <button class="act" id="editMapBtn"><span class="k">✎</span> Edit map</button>`;
+  stage.appendChild(ea);
+  $("#addPlant").onclick=()=>startPlacement("plant");
+  $("#addFire").onclick=()=>{ if(ap) startPlacement("lineup"); };
+  $("#editMapBtn").onclick=()=>openEditMap(m.id);
+}
+
+function shortName(n){ return n.length>14 ? n.slice(0,13)+"…" : n; }
+
+function emptyEl(title, body, buttons){
+  const d=document.createElement("div"); d.className="empty";
+  d.innerHTML=`<div class="big">${title}</div><p>${body}</p><div class="row"></div>`;
+  const row=d.querySelector(".row");
+  buttons.forEach(([label,kind,fn])=>{
+    const b=document.createElement("button");
+    b.className = kind==="primary" ? "btn-primary" : "btn-ghost";
+    b.textContent=label; b.onclick=fn; row.appendChild(b);
+  });
+  return d;
+}
+
+function renderAll(){ renderTabs(); renderAgentBar(); renderStage(); }
+
+/* ==========================================================
+   MARKER interaction (tap vs drag)
+   ========================================================== */
+function attachMarkerHandlers(el, box, obj, kind){
+  let dragging=false, moved=false, sx=0, sy=0;
+
+  el.addEventListener("pointerdown",(e)=>{
+    if(ui.pending) return;
+    if(!document.body.classList.contains("editing")) return; // drag only in edit
+    e.preventDefault();
+    dragging=true; moved=false; sx=e.clientX; sy=e.clientY;
+    el.setPointerCapture(e.pointerId);
+    el.classList.add("grabbing");
+  });
+  el.addEventListener("pointermove",(e)=>{
+    if(!dragging) return;
+    if(Math.abs(e.clientX-sx)>4 || Math.abs(e.clientY-sy)>4) moved=true;
+    const r=box.getBoundingClientRect();
+    let nx=(e.clientX-r.left)/r.width, ny=(e.clientY-r.top)/r.height;
+    nx=Math.max(0,Math.min(1,nx)); ny=Math.max(0,Math.min(1,ny));
+    obj.x=nx; obj.y=ny;
+    el.style.left=(nx*100)+"%"; el.style.top=(ny*100)+"%";
+    // live-update connector if this is armed plant or its lineup
+    updateConnectors(box);
+  });
+  el.addEventListener("pointerup",(e)=>{
+    if(dragging){
+      dragging=false; el.classList.remove("grabbing");
+      if(moved){ persist(); renderTabs(); return; } // was a drag -> save, don't open
+    }
+  });
+
+  el.addEventListener("click",(e)=>{
+    if(ui.pending){ return; }
+    if(moved){ moved=false; return; }
+    const editing=document.body.classList.contains("editing");
+    if(kind==="plant"){
+      if(editing){ openEditPlant(obj.id); }
+      else { ui.armedPlantId = (ui.armedPlantId===obj.id? null : obj.id); renderAll(); }
+    }else{ // lineup
+      if(editing){ openEditLineup(obj.id); }
+      else { openViewer(obj); }
+    }
+    e.stopPropagation();
+  });
+}
+
+function updateConnectors(box){
+  const svg=box.querySelector("svg.links"); if(!svg) return;
+  const ap=armedPlant(); if(!ap) return;
+  const lines=svg.querySelectorAll("line");
+  ap.lineups.forEach((lu,i)=>{
+    const ln=lines[i]; if(!ln) return;
+    ln.setAttribute("x1",(ap.x*100).toFixed(2)); ln.setAttribute("y1",(ap.y*100).toFixed(2));
+    ln.setAttribute("x2",(lu.x*100).toFixed(2)); ln.setAttribute("y2",(lu.y*100).toFixed(2));
+  });
+}
+
+/* ==========================================================
+   PLACEMENT (drop new markers by tapping map)
+   ========================================================== */
+function startPlacement(type){
+  ui.pending={type};
+  const bar=$("#placeBar");
+  $("#placeTxt").textContent = type==="plant"
+    ? "Tap the map where you plant the spike"
+    : "Tap the map where you throw the molly from";
+  bar.classList.add("show");
+  const box=$("#mapBox"); if(box) box.classList.add("placing");
+}
+function cancelPlacement(){
+  ui.pending=null; $("#placeBar").classList.remove("show");
+  const box=$("#mapBox"); if(box) box.classList.remove("placing");
+}
+function handlePlacementClick(e, box){
+  const type=ui.pending.type;
+  const r=box.getBoundingClientRect();
+  let nx=(e.clientX-r.left)/r.width, ny=(e.clientY-r.top)/r.height;
+  nx=Math.max(0,Math.min(1,nx)); ny=Math.max(0,Math.min(1,ny));
+  cancelPlacement();
+  const m=activeMap(); if(!m) return;
+  if(type==="plant"){
+    const defAgent = ui.activeAgent!=="All" ? ui.activeAgent : (ui.lastAgent||"Brimstone");
+    const p={id:uid(),name:"New plant spot",agent:defAgent,x:nx,y:ny,lineups:[]};
+    m.plants.push(p); persist(); ui.armedPlantId=p.id; renderAll();
+    openEditPlant(p.id, true);
+  }else{
+    const ap=armedPlant(); if(!ap){ toast("Arm a plant spot first",true); return; }
+    const lu={id:uid(),name:"New firing position",x:nx,y:ny,images:[],notes:""};
+    ap.lineups.push(lu); persist(); renderAll();
+    openEditLineup(lu.id, true);
+  }
+}
+
+/* ==========================================================
+   VIEWER (requirement 7 — popup images + text)
+   ========================================================== */
+function openViewer(lu){
+  $("#viewTitle").textContent=lu.name;
+  const shots=$("#viewShots");
+  const imgs=(lu.images||[]).slice(0,4);
+  shots.className="shots n"+imgs.length;
+  shots.innerHTML="";
+  if(imgs.length===0){
+    shots.innerHTML='<div class="noimg">No screenshots added for this lineup</div>';
+  }else{
+    imgs.forEach((src,i)=>{
+      const cell=document.createElement("div");
+      // for 3 images: 1st + 2nd on top row, 3rd centered on its own row
+      cell.className="cell"+(imgs.length===3 && i===2 ? " cell3":"");
+      const im=document.createElement("img"); im.src=src; im.alt=lu.name+" "+(i+1); im.loading="lazy";
+      im.onclick=()=>openLightbox(src);
+      cell.appendChild(im); shots.appendChild(cell);
+    });
+  }
+  const ap=armedPlant();
+  const n=imgs.length;
+  $("#viewMeta").innerHTML = ap
+    ? `<span style="color:${agentColor(agentOf(ap))}">${escapeHtml(agentOf(ap))}</span> · PLANT ▸ <b>${escapeHtml(ap.name)}</b> · ${n} shot${n!==1?"s":""}`
+    : `${n} shot${n!==1?"s":""}`;
+  const nb=$("#viewNotes");
+  if(lu.notes && lu.notes.trim()){ nb.textContent=lu.notes; nb.className="body"; }
+  else{ nb.textContent="No notes yet — add setup steps in edit mode."; nb.className="body empty-note"; }
+  openScrim("viewScrim");
+}
+function openLightbox(src){ $("#lxImg").src=src; $("#lightbox").classList.add("show"); }
+
+/* ==========================================================
+   MAP editor
+   ========================================================== */
+function openAddMap(){
+  ui.editMapId=null; ui.tmpMapImg=null;
+  $("#mapModalTitle").textContent="Add map";
+  $("#mapName").value="";
+  $("#mapPreview").innerHTML="";
+  $("#mapDelete").style.display="none";
+  openScrim("mapScrim"); setTimeout(()=>$("#mapName").focus(),150);
+}
+function openEditMap(id){
+  const m=state.maps.find(x=>x.id===id); if(!m) return;
+  ui.editMapId=id; ui.tmpMapImg=m.image;
+  $("#mapModalTitle").textContent="Edit map";
+  $("#mapName").value=m.name;
+  $("#mapPreview").innerHTML=`<img src="${m.image}" style="width:100%;border:1px solid var(--line);display:block">`;
+  $("#mapDelete").style.display="block";
+  openScrim("mapScrim");
+}
+$("#mapUploader").onclick=()=>$("#mapFile").click();
+$("#mapFile").onchange=async (e)=>{
+  const f=e.target.files[0]; if(!f) return;
+  try{
+    const url=await resizeImage(f,1600,0.85);
+    ui.tmpMapImg=url;
+    $("#mapPreview").innerHTML=`<img src="${url}" style="width:100%;border:1px solid var(--line);display:block">`;
+  }catch(err){ toast("Couldn't read that image",true); }
+  e.target.value="";
+};
+$("#mapSave").onclick=()=>{
+  const name=$("#mapName").value.trim();
+  if(!name){ toast("Give the map a name",true); return; }
+  if(!ui.tmpMapImg){ toast("Upload a radar image",true); return; }
+  if(ui.editMapId){
+    const m=state.maps.find(x=>x.id===ui.editMapId);
+    m.name=name; m.image=ui.tmpMapImg;
+  }else{
+    const m={id:uid(),name,image:ui.tmpMapImg,plants:[]};
+    state.maps.push(m); ui.activeMapId=m.id; ui.armedPlantId=null; ui.activeAgent="All";
+  }
+  persist(); closeScrim("mapScrim"); renderAll();
+  toast("Map saved");
+};
+$("#mapDelete").onclick=()=>{
+  if(!ui.editMapId) return;
+  if(!confirm("Delete this map and all its lineups?")) return;
+  state.maps=state.maps.filter(m=>m.id!==ui.editMapId);
+  if(ui.activeMapId===ui.editMapId){ ui.activeMapId=state.maps[0]?state.maps[0].id:null; ui.armedPlantId=null; ui.activeAgent="All"; }
+  persist(); closeScrim("mapScrim"); renderAll();
+  toast("Map deleted");
+};
+
+/* ==========================================================
+   PLANT editor
+   ========================================================== */
+function openEditPlant(id, isNew=false){
+  const m=activeMap(); const p=m&&m.plants.find(x=>x.id===id); if(!p) return;
+  ui.editPlantId=id;
+  $("#plantModalTitle").textContent=isNew?"Name plant spot":"Edit plant spot";
+  $("#plantName").value = isNew ? "" : p.name;
+  $("#plantAgent").value = agentOf(p);
+  $("#plantDelete").style.display="block";
+  openScrim("plantScrim"); setTimeout(()=>$("#plantName").focus(),150);
+}
+$("#plantSave").onclick=()=>{
+  const m=activeMap(); const p=m&&m.plants.find(x=>x.id===ui.editPlantId); if(!p) return;
+  const name=$("#plantName").value.trim();
+  if(!name){ toast("Name this plant spot",true); return; }
+  const agent=$("#plantAgent").value.trim() || "Brimstone";
+  p.name=name; p.agent=agent; ui.lastAgent=agent;
+  if(ui.activeAgent!=="All" && ui.activeAgent!==agent) ui.activeAgent=agent; // keep it visible
+  persist(); closeScrim("plantScrim"); renderAll(); toast("Plant spot saved");
+};
+$("#plantDelete").onclick=()=>{
+  const m=activeMap(); if(!m) return;
+  if(!confirm("Delete this plant spot and its firing positions?")) return;
+  m.plants=m.plants.filter(x=>x.id!==ui.editPlantId);
+  if(ui.armedPlantId===ui.editPlantId) ui.armedPlantId=null;
+  persist(); closeScrim("plantScrim"); renderAll(); toast("Deleted");
+};
+
+/* ==========================================================
+   LINEUP editor
+   ========================================================== */
+function openEditLineup(id, isNew=false){
+  const ap=armedPlant(); const lu=ap&&ap.lineups.find(x=>x.id===id); if(!lu) return;
+  ui.editLineupId=id;
+  ui.tmpImages = (lu.images||[]).slice();
+  $("#lineupModalTitle").textContent=isNew?"New firing position":"Edit firing position";
+  $("#lineupName").value = isNew ? "" : lu.name;
+  $("#lineupNotes").value = lu.notes||"";
+  renderLineupThumbs();
+  $("#lineupDelete").style.display="block";
+  openScrim("lineupScrim"); setTimeout(()=>$("#lineupName").focus(),150);
+}
+function renderLineupThumbs(){
+  const wrap=$("#lineupThumbs"); wrap.innerHTML="";
+  ui.tmpImages.forEach((src,i)=>{
+    const t=document.createElement("div"); t.className="thumb";
+    t.innerHTML=`<img src="${src}" alt=""><button title="Remove">✕</button><span class="badge">${i+1}</span>`;
+    t.querySelector("button").onclick=()=>{ ui.tmpImages.splice(i,1); renderLineupThumbs(); };
+    t.querySelector("img").onclick=()=>openLightbox(src);
+    wrap.appendChild(t);
+  });
+}
+$("#lineupUploader").onclick=()=>$("#lineupFile").click();
+$("#lineupFile").onchange=async (e)=>{
+  const files=[...e.target.files]; if(!files.length) return;
+  toast("Processing "+files.length+" image"+(files.length>1?"s":"")+"…");
+  for(const f of files){
+    try{ const url=await resizeImage(f,1400,0.82); ui.tmpImages.push(url); }
+    catch(err){ /* skip bad file */ }
+  }
+  renderLineupThumbs(); e.target.value="";
+};
+$("#lineupSave").onclick=()=>{
+  const ap=armedPlant(); const lu=ap&&ap.lineups.find(x=>x.id===ui.editLineupId); if(!lu) return;
+  const name=$("#lineupName").value.trim();
+  if(!name){ toast("Name this firing position",true); return; }
+  lu.name=name; lu.notes=$("#lineupNotes").value; lu.images=ui.tmpImages.slice();
+  persist(); closeScrim("lineupScrim"); renderAll(); toast("Firing position saved");
+};
+$("#lineupDelete").onclick=()=>{
+  const ap=armedPlant(); if(!ap) return;
+  if(!confirm("Delete this firing position?")) return;
+  ap.lineups=ap.lineups.filter(x=>x.id!==ui.editLineupId);
+  persist(); closeScrim("lineupScrim"); renderAll(); toast("Deleted");
+};
+
+/* ==========================================================
+   Scrim open/close
+   ========================================================== */
+function openScrim(id){ $("#"+id).classList.add("show"); document.body.style.overflow="hidden"; }
+function closeScrim(id){ $("#"+id).classList.remove("show"); document.body.style.overflow=""; }
+document.querySelectorAll("[data-close]").forEach(b=>{
+  b.onclick=()=>closeScrim(b.getAttribute("data-close"));
+});
+document.querySelectorAll(".scrim").forEach(s=>{
+  s.addEventListener("click",(e)=>{ if(e.target===s) closeScrim(s.id); });
+});
+$("#lightbox").onclick=()=>$("#lightbox").classList.remove("show");
+$("#lxClose").onclick=(e)=>{ e.stopPropagation(); $("#lightbox").classList.remove("show"); };
+document.addEventListener("keydown",(e)=>{
+  if(e.key==="Escape"){
+    if($("#lightbox").classList.contains("show")){ $("#lightbox").classList.remove("show"); return; }
+    document.querySelectorAll(".scrim.show").forEach(s=>closeScrim(s.id));
+    if(ui.pending) cancelPlacement();
+  }
+});
+
+/* ==========================================================
+   Edit mode + data menu
+   ========================================================== */
+$("#editBtn").onclick=()=>{
+  const on=document.body.classList.toggle("editing");
+  $("#editBtn").classList.toggle("on",on);
+  if(!on && ui.pending) cancelPlacement();
+  renderAll();
+};
+$("#dataBtn").onclick=(e)=>{
+  e.stopPropagation();
+  const menu=$("#dataMenu");
+  const willShow=!menu.classList.contains("show");
+  if(willShow){
+    const r=$("#dataBtn").getBoundingClientRect();
+    menu.style.top=(r.bottom+6)+"px";
+    menu.style.right=Math.max(8,(window.innerWidth-r.right))+"px";
+    updateMeter();
+  }
+  menu.classList.toggle("show");
+};
+document.addEventListener("click",(e)=>{
+  if(!$("#dataMenu").contains(e.target) && e.target!==$("#dataBtn") && !$("#dataBtn").contains(e.target)){
+    $("#dataMenu").classList.remove("show");
+  }
+});
+$("#placeCancel").onclick=cancelPlacement;
+
+/* ---------- export ---------- */
+$("#exportBtn").onclick=()=>{
+  $("#dataMenu").classList.remove("show");
+  $("#exportText").value=JSON.stringify(state);
+  openScrim("exportScrim");
+  setTimeout(()=>{ const t=$("#exportText"); t.focus(); t.select(); },160);
+};
+$("#dlFileBtn").onclick=()=>{
+  try{
+    const blob=new Blob([$("#exportText").value],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url; a.download="brim-lineups-backup.json";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),4000);
+  }catch(e){ toast("Download blocked here — use Copy instead",true,3500); }
+};
+$("#copyJsonBtn").onclick=()=>copyText($("#exportText").value);
+
+function copyText(text){
+  const done=ok=>toast(ok?"Copied to clipboard ✓":"Couldn't copy — select the text and copy manually",!ok,3200);
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(text).then(()=>done(true)).catch(()=>fallbackCopy(text,done));
+  }else{ fallbackCopy(text,done); }
+}
+function fallbackCopy(text,done){
+  const src=$("#exportText"); let target=src, temp=null;
+  if(!src || src.value!==text){
+    temp=document.createElement("textarea"); temp.value=text;
+    temp.style.position="fixed"; temp.style.top="0"; temp.style.opacity="0";
+    document.body.appendChild(temp); target=temp;
+  }
+  target.focus(); target.select();
+  let ok=false; try{ ok=document.execCommand("copy"); }catch(e){ ok=false; }
+  if(temp) temp.remove(); done(ok);
+}
+
+/* ---------- import ---------- */
+$("#importBtn").onclick=()=>{ $("#dataMenu").classList.remove("show"); $("#importText").value=""; openScrim("importScrim"); };
+$("#chooseFileBtn").onclick=()=>$("#importFile").click();
+$("#importFile").onchange=(e)=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>applyImport(r.result);
+  r.readAsText(f); e.target.value="";
+};
+$("#loadPastedBtn").onclick=()=>{
+  const txt=$("#importText").value.trim();
+  if(!txt){ toast("Paste your backup text first",true); return; }
+  applyImport(txt);
+};
+function applyImport(raw){
+  try{
+    const p=JSON.parse(raw);
+    if(!p || !Array.isArray(p.maps)) throw new Error("bad");
+    state=p; ui.activeMapId=state.maps[0]?state.maps[0].id:null; ui.armedPlantId=null;
+    persist(); closeScrim("importScrim"); renderAll(); toast("Backup loaded ✓");
+  }catch(err){ toast("That isn't valid backup data",true); }
+}
+$("#wipeBtn").onclick=()=>{
+  $("#dataMenu").classList.remove("show");
+  if(!confirm("Erase ALL maps and lineups from this device? Export a backup first if unsure.")) return;
+  state={maps:[]}; ui.activeMapId=null; ui.armedPlantId=null;
+  persist(); renderAll(); toast("Everything erased");
+};
+$("#demoBtn").onclick=()=>{ $("#dataMenu").classList.remove("show"); loadDemo(); };
+
+/* ==========================================================
+   DEMO layout (generated placeholder map so the flow is visible)
+   ========================================================== */
+function demoRadar(){
+  const svg=`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 800'>
+    <rect width='800' height='800' fill='#0d1319'/>
+    <g stroke='#1c2530' stroke-width='1'>${
+      Array.from({length:15},(_,i)=>`<line x1='${(i+1)*50}' y1='0' x2='${(i+1)*50}' y2='800'/><line x1='0' y1='${(i+1)*50}' x2='800' y2='${(i+1)*50}'/>`).join("")
+    }</g>
+    <rect x='90' y='110' width='230' height='180' fill='#141c24' stroke='#3a4756' stroke-width='2'/>
+    <text x='205' y='210' fill='#5a6675' font-family='monospace' font-size='58' text-anchor='middle' font-weight='700'>A</text>
+    <rect x='480' y='520' width='230' height='180' fill='#141c24' stroke='#3a4756' stroke-width='2'/>
+    <text x='595' y='620' fill='#5a6675' font-family='monospace' font-size='58' text-anchor='middle' font-weight='700'>B</text>
+    <rect x='330' y='330' width='140' height='140' fill='#10161d' stroke='#2a3542' stroke-width='2'/>
+    <text x='400' y='408' fill='#4a5561' font-family='monospace' font-size='30' text-anchor='middle' font-weight='700'>MID</text>
+    <path d='M320 200 L560 200 L560 520' fill='none' stroke='#232e3a' stroke-width='26' stroke-linejoin='round'/>
+    <path d='M205 290 L205 560 L480 610' fill='none' stroke='#232e3a' stroke-width='26' stroke-linejoin='round'/>
+    <text x='400' y='60' fill='#3a4756' font-family='monospace' font-size='22' text-anchor='middle' letter-spacing='6'>DEMO RADAR — REPLACE WITH REAL MAP</text>
+  </svg>`;
+  return "data:image/svg+xml;utf8,"+encodeURIComponent(svg);
+}
+function loadDemo(){
+  if(state.maps.length && !confirm("Load the demo layout? It'll be added alongside your existing maps.")) return;
+  const map={
+    id:uid(), name:"Demo Map", image:demoRadar(),
+    plants:[
+      { id:uid(), name:"A Site — Default", x:0.26, y:0.25, lineups:[
+        { id:uid(), name:"From A Main", x:0.20, y:0.62, images:[], notes:"Stand in the corner of A Main.\nAim at the top-left antenna, line the crosshair tip to the roof edge.\nStanding throw (left click)." },
+        { id:uid(), name:"From A Lobby", x:0.46, y:0.30, images:[], notes:"Back wall of A Lobby.\nJump-throw: aim just above the doorway frame, jump + throw at the peak." }
+      ]},
+      { id:uid(), name:"B Site — Default", agent:"Brimstone", x:0.74, y:0.76, lineups:[
+        { id:uid(), name:"From B Main", x:0.62, y:0.62, images:[], notes:"Hug the right wall of B Main.\nAlign crosshair with the far corner, standing throw." }
+      ]},
+      { id:uid(), name:"Mid", agent:"Brimstone", x:0.50, y:0.50, lineups:[] },
+      { id:uid(), name:"B Site — Post-plant", agent:"Viper", x:0.70, y:0.70, lineups:[
+        { id:uid(), name:"Snakebite from B Main", x:0.60, y:0.66, images:[], notes:"Example of a second agent.\nSelect the agent filter above the map to switch between Brimstone and Viper lineups." }
+      ]}
+    ]
+  };
+  state.maps.push(map); ui.activeMapId=map.id; ui.armedPlantId=null;
+  persist(); renderAll();
+  toast('Demo loaded — tap a red ◆ to arm a site');
+}
+
+/* ---------- util ---------- */
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function timeAgo(ts){
+  if(!ts) return "never";
+  const s=Math.floor((Date.now()-ts)/1000);
+  if(s<10) return "just now";
+  if(s<60) return s+"s ago";
+  const m=Math.floor(s/60); if(m<60) return m+"m ago";
+  const h=Math.floor(m/60); if(h<24) return h+"h ago";
+  return Math.floor(h/24)+"d ago";
+}
+
+/* ==========================================================
+   GOOGLE DRIVE SYNC
+   Uses Google Identity Services (OAuth) + Drive REST v3 directly,
+   scope drive.file (app can only see files it creates — never
+   your whole Drive). Requires the person to supply their own
+   OAuth Client ID (see chat for setup steps) because Google ties
+   client IDs to the exact hosting origin.
+   ========================================================== */
+const DRIVE_SCOPE="https://www.googleapis.com/auth/drive.file";
+const DRIVE_FOLDER_NAME="BrimLineups";
+const DRIVE_CURRENT_FILE="current.json";
+const DRIVE_CFG_KEY="driveConfig";
+
+let driveConfig={ clientId:"", folderId:null, currentFileId:null, lastSyncedAt:0 };
+let driveAccessToken=null, driveTokenExpiresAt=0, driveTokenClient=null;
+
+async function loadDriveConfig(){
+  try{ const c=await idbGet(DRIVE_CFG_KEY); if(c) driveConfig=Object.assign(driveConfig,c); }catch(e){}
+}
+function persistDriveConfig(){ idbSet(DRIVE_CFG_KEY, driveConfig).catch(()=>{}); }
+
+function ensureTokenClient(){
+  if(!(window.google && google.accounts && google.accounts.oauth2)) throw new Error("Google sign-in script hasn't loaded — check your internet connection and reload.");
+  if(driveTokenClient && driveTokenClient._cid===driveConfig.clientId) return driveTokenClient;
+  driveTokenClient=google.accounts.oauth2.initTokenClient({
+    client_id: driveConfig.clientId, scope: DRIVE_SCOPE, callback:()=>{}
+  });
+  driveTokenClient._cid=driveConfig.clientId;
+  return driveTokenClient;
+}
+function requestDriveToken(){
+  return new Promise((resolve,reject)=>{
+    if(!driveConfig.clientId){ reject(new Error("No Client ID saved yet")); return; }
+    let tc; try{ tc=ensureTokenClient(); }catch(e){ reject(e); return; }
+    tc.callback=(resp)=>{
+      if(resp.error){ reject(new Error(resp.error==="popup_closed"?"Sign-in was closed":resp.error)); return; }
+      driveAccessToken=resp.access_token;
+      driveTokenExpiresAt=Date.now()+((resp.expires_in||3600)*1000)-30000;
+      resolve(driveAccessToken);
+    };
+    tc.requestAccessToken({prompt:""});
+  });
+}
+async function getValidToken(){
+  if(driveAccessToken && Date.now()<driveTokenExpiresAt) return driveAccessToken;
+  return requestDriveToken();
+}
+function isDriveConnected(){ return !!driveAccessToken && Date.now()<driveTokenExpiresAt; }
+
+async function driveFetch(url, opts={}){
+  const token=await getValidToken();
+  const headers=Object.assign({}, opts.headers||{}, {Authorization:"Bearer "+token});
+  const res=await fetch(url, Object.assign({}, opts, {headers}));
+  if(!res.ok){
+    let detail=""; try{ detail=(await res.json()).error.message||""; }catch(e){}
+    throw new Error("Drive error "+res.status+(detail?": "+detail:""));
+  }
+  return res;
+}
+async function findOrCreateFolder(){
+  if(driveConfig.folderId) return driveConfig.folderId;
+  const q=encodeURIComponent(`name='${DRIVE_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false and 'root' in parents`);
+  const data=await (await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`)).json();
+  if(data.files && data.files.length){ driveConfig.folderId=data.files[0].id; persistDriveConfig(); return driveConfig.folderId; }
+  const created=await (await driveFetch("https://www.googleapis.com/drive/v3/files",{
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({name:DRIVE_FOLDER_NAME, mimeType:"application/vnd.google-apps.folder"})
+  })).json();
+  driveConfig.folderId=created.id; persistDriveConfig();
+  return driveConfig.folderId;
+}
+async function findFile(name, folderId){
+  const q=encodeURIComponent(`name='${name}' and '${folderId}' in parents and trashed=false`);
+  const data=await (await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc`)).json();
+  return (data.files && data.files[0]) || null;
+}
+async function listVersionFiles(folderId){
+  const q=encodeURIComponent(`name contains 'brim-lineups-v' and '${folderId}' in parents and trashed=false`);
+  const data=await (await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,createdTime)&orderBy=createdTime desc`)).json();
+  return data.files||[];
+}
+async function createJsonFile(name, folderId, obj){
+  const boundary="brimb"+uid();
+  const metadata={name, parents:[folderId]};
+  const body=`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`
+            +`--${boundary}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(obj)}\r\n--${boundary}--`;
+  return (await driveFetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,modifiedTime,createdTime",{
+    method:"POST", headers:{"Content-Type":`multipart/related; boundary=${boundary}`}, body
+  })).json();
+}
+async function updateJsonFile(fileId, obj){
+  return (await driveFetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media&fields=id,modifiedTime`,{
+    method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify(obj)
+  })).json();
+}
+async function downloadJsonFile(fileId){
+  return (await driveFetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`)).json();
+}
+
+/* ---- actions ---- */
+async function driveConnect(){
+  if(!driveConfig.clientId){ toast("Paste your Client ID first",true); return; }
+  try{ await requestDriveToken(); toast("Connected to Google Drive ✓"); renderDriveModal(); }
+  catch(e){ toast(e.message||"Couldn't connect",true,4500); }
+}
+async function driveSyncNow(){
+  if(!navigator.onLine){ toast("You're offline — using the version saved on this device",true); return; }
+  try{
+    await getValidToken();
+    const folderId=await findOrCreateFolder();
+    const remote=await findFile(DRIVE_CURRENT_FILE, folderId);
+    if(remote){
+      driveConfig.currentFileId=remote.id;
+      const remoteTime=new Date(remote.modifiedTime).getTime();
+      if(remoteTime > (driveConfig.lastSyncedAt||0)+2000){
+        const useDrive=confirm(
+          "Drive has a save from "+new Date(remoteTime).toLocaleString()+".\n\n"+
+          "OK = load Drive's version onto this device (replaces what you see now)\n"+
+          "Cancel = push this device's version up to Drive instead"
+        );
+        if(useDrive){
+          const data=await downloadJsonFile(remote.id);
+          if(data && Array.isArray(data.maps)){
+            state=data; ui.activeMapId=state.maps[0]?state.maps[0].id:null; ui.armedPlantId=null;
+            persist(); driveConfig.lastSyncedAt=Date.now(); persistDriveConfig();
+            renderAll(); toast("Loaded latest from Drive ✓"); renderDriveModal(); return;
+          }
+        }
+      }
+      const updated=await updateJsonFile(remote.id, state);
+      driveConfig.lastSyncedAt=new Date(updated.modifiedTime).getTime(); persistDriveConfig();
+      toast("Synced to Drive ✓");
+    }else{
+      const created=await createJsonFile(DRIVE_CURRENT_FILE, folderId, state);
+      driveConfig.currentFileId=created.id;
+      driveConfig.lastSyncedAt=new Date(created.modifiedTime).getTime(); persistDriveConfig();
+      toast("Uploaded to Drive ✓");
+    }
+    renderDriveModal();
+  }catch(e){ toast("Sync failed — "+(e.message||""),true,4500); }
+}
+async function driveSaveVersion(){
+  if(!navigator.onLine){ toast("You're offline",true); return; }
+  try{
+    await getValidToken();
+    const folderId=await findOrCreateFolder();
+    const versions=await listVersionFiles(folderId);
+    let maxV=0; versions.forEach(f=>{ const m=f.name.match(/v(\d+)\.json$/); if(m) maxV=Math.max(maxV,parseInt(m[1],10)); });
+    const name=`brim-lineups-v${maxV+1}.json`;
+    await createJsonFile(name, folderId, state);
+    toast("Saved as "+name+" on Drive ✓");
+    renderVersionHistory();
+  }catch(e){ toast("Couldn't save version — "+(e.message||""),true,4500); }
+}
+async function driveRestoreVersion(fileId, label){
+  if(!confirm(`Restore "${label}"? This replaces what's on this device now.`)) return;
+  try{
+    const data=await downloadJsonFile(fileId);
+    if(!data || !Array.isArray(data.maps)) throw new Error("That file isn't valid lineup data");
+    state=data; ui.activeMapId=state.maps[0]?state.maps[0].id:null; ui.armedPlantId=null;
+    persist(); renderAll();
+    toast("Restored ✓ — tap Sync now to push it as Drive's current save");
+  }catch(e){ toast(e.message||"Couldn't restore that version",true); }
+}
+function driveDisconnect(){
+  try{ if(driveAccessToken) google.accounts.oauth2.revoke(driveAccessToken,()=>{}); }catch(e){}
+  driveAccessToken=null; driveTokenExpiresAt=0;
+  toast("Disconnected from Drive"); renderDriveModal();
+}
+
+/* ---- Drive modal rendering ---- */
+function renderDriveModal(){
+  const body=$("#driveBody"); if(!body) return;
+  if(!driveConfig.clientId){
+    body.innerHTML=`
+      <p class="modal-note">One-time setup: create a free Google OAuth Client ID so this app can sync to <b>your own</b> Drive. See the steps in chat, then paste the ID below.</p>
+      <div class="field"><label>Google OAuth Client ID</label>
+        <input type="text" id="driveClientIdInput" placeholder="xxxxxxxxxxxx.apps.googleusercontent.com"></div>
+      <button class="btn-primary" id="saveClientIdBtn" style="width:100%">Save Client ID</button>`;
+    $("#saveClientIdBtn").onclick=()=>{
+      const v=$("#driveClientIdInput").value.trim();
+      if(!v){ toast("Paste your Client ID first",true); return; }
+      driveConfig.clientId=v; persistDriveConfig(); renderDriveModal();
+    };
+    return;
+  }
+  const connected=isDriveConnected();
+  body.innerHTML=`
+    <div class="drive-status ${connected?'on':''}"><span class="dot2"></span><span>${connected?'Connected':'Not connected'} · last synced ${timeAgo(driveConfig.lastSyncedAt)}</span></div>
+    <div class="dual-btn" style="margin-top:12px">
+      ${connected?'':'<button class="btn-primary" id="driveConnectBtn">Connect to Drive</button>'}
+      ${connected?'<button class="btn-primary" id="driveSyncBtn">Sync now</button><button class="btn-ghost" id="driveVersionBtn">Save new version</button>':''}
+    </div>
+    ${connected?'<button class="btn-ghost" id="driveHistoryBtn" style="width:100%;margin-top:10px">View version history</button>':''}
+    <div id="driveHistoryList"></div>
+    <div class="form-actions">
+      <button class="btn-ghost" id="driveChangeIdBtn">Change Client ID</button>
+      ${connected?'<button class="del-btn" id="driveDisconnectBtn">Disconnect</button>':''}
+    </div>`;
+  if(connected){
+    $("#driveSyncBtn").onclick=driveSyncNow;
+    $("#driveVersionBtn").onclick=driveSaveVersion;
+    $("#driveHistoryBtn").onclick=renderVersionHistory;
+    $("#driveDisconnectBtn").onclick=driveDisconnect;
+  }else{
+    $("#driveConnectBtn").onclick=driveConnect;
+  }
+  $("#driveChangeIdBtn").onclick=()=>{
+    if(!confirm("Clear the saved Client ID? You'll need to paste it again to reconnect.")) return;
+    driveConfig={clientId:"",folderId:null,currentFileId:null,lastSyncedAt:0}; persistDriveConfig();
+    driveAccessToken=null; driveTokenExpiresAt=0;
+    renderDriveModal();
+  };
+}
+async function renderVersionHistory(){
+  const list=$("#driveHistoryList"); if(!list) return;
+  list.innerHTML='<div class="hint" style="margin-top:12px">Loading versions…</div>';
+  try{
+    await getValidToken();
+    const folderId=await findOrCreateFolder();
+    const files=await listVersionFiles(folderId);
+    if(!files.length){ list.innerHTML='<div class="hint" style="margin-top:12px">No saved versions yet — tap "Save new version" to create your first snapshot.</div>'; return; }
+    list.innerHTML='<div class="notes"><div class="h">Saved versions</div></div>'+files.map(f=>{
+      const m=f.name.match(/v(\d+)\.json$/); const vnum=m?m[1]:"?";
+      const date=new Date(f.createdTime).toLocaleString();
+      return `<div class="version-row"><div><b>v${vnum}</b><span class="vdate">${escapeHtml(date)}</span></div>
+        <button class="btn-ghost small" data-restore="${f.id}" data-label="v${vnum} (${date})">Restore</button></div>`;
+    }).join("");
+    list.querySelectorAll("[data-restore]").forEach(btn=>{
+      btn.onclick=()=>driveRestoreVersion(btn.getAttribute("data-restore"), btn.getAttribute("data-label"));
+    });
+  }catch(e){ list.innerHTML='<div class="hint" style="margin-top:12px;color:var(--red-2)">Couldn\'t load versions — '+escapeHtml(e.message||"")+'</div>'; }
+}
+$("#driveMenuBtn").onclick=()=>{ $("#dataMenu").classList.remove("show"); renderDriveModal(); openScrim("driveScrim"); };
+
+/* ---------- boot ---------- */
+(async function boot(){
+  await loadState();
+  normalizeState();
+  await loadDriveConfig();
+  if(state.maps.length) ui.activeMapId=state.maps[0].id;
+  await updateMeter();
+  renderAll();
+})();
+</script>
+</body>
+</html>
