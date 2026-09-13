@@ -8,7 +8,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root{
     --bg:#0A0D12; --surface:#10151B; --surface-2:#171E26; --surface-3:#1E2833;
@@ -377,7 +376,7 @@
       <div class="track"><div class="fill" id="meterFill"></div></div>
       <div class="v" id="meterVal">–</div>
     </div>
-    <button id="driveMenuBtn"><span>☁</span> Cloud sync (Drive)</button>
+    <button id="syncMenuBtn"><span>☁</span> Cloud sync (GitHub)</button>
     <button id="exportBtn"><span>⭳</span> Export backup (.json)</button>
     <button id="importBtn"><span>⭱</span> Import backup (.json)</button>
     <button id="demoBtn"><span>◈</span> Load demo layout</button>
@@ -571,15 +570,15 @@
   </div>
 </div>
 
-<!-- DRIVE sync -->
-<div class="scrim" id="driveScrim">
+<!-- SYNC (GitHub) -->
+<div class="scrim" id="syncScrim">
   <div class="sheet">
     <div class="sheet-head">
-      <span class="tag">CLOUD</span>
-      <h3>Drive sync</h3>
-      <button class="x" data-close="driveScrim">✕</button>
+      <span class="tag">SYNC</span>
+      <h3>GitHub sync</h3>
+      <button class="x" data-close="syncScrim">✕</button>
     </div>
-    <div class="sheet-body" id="driveBody"></div>
+    <div class="sheet-body" id="syncBody"></div>
   </div>
 </div>
 
@@ -1361,245 +1360,190 @@ function timeAgo(ts){
 }
 
 /* ==========================================================
-   GOOGLE DRIVE SYNC
-   Uses Google Identity Services (OAuth) + Drive REST v3 directly,
-   scope drive.file (app can only see files it creates — never
-   your whole Drive). Requires the person to supply their own
-   OAuth Client ID (see chat for setup steps) because Google ties
-   client IDs to the exact hosting origin.
+   GITHUB SYNC
+   Stores your lineups as a JSON file in your own GitHub repo and
+   syncs both ways with a fine-grained Personal Access Token
+   (repo Contents: Read & write). No Google. The same token on
+   each device gives full read + write everywhere. Repo owner and
+   name are auto-detected from the GitHub Pages address.
    ========================================================== */
-const DRIVE_SCOPE="https://www.googleapis.com/auth/drive.file";
-const DRIVE_FOLDER_NAME="BrimLineups";
-const DRIVE_CURRENT_FILE="current.json";
-const DRIVE_CFG_KEY="driveConfig";
+const GH_CFG_KEY="githubSyncConfig";
+const GH_DATA_PATH="lineups-data.json";
+let ghConfig={ token:"", owner:"", repo:"", branch:"main", path:GH_DATA_PATH, lastSha:null, lastSyncedAt:0 };
 
-let driveConfig={ clientId:"", folderId:null, currentFileId:null, lastSyncedAt:0 };
-let driveAccessToken=null, driveTokenExpiresAt=0, driveTokenClient=null;
-
-async function loadDriveConfig(){
-  try{ const c=await idbGet(DRIVE_CFG_KEY); if(c) driveConfig=Object.assign(driveConfig,c); }catch(e){}
-}
-function persistDriveConfig(){ idbSet(DRIVE_CFG_KEY, driveConfig).catch(()=>{}); }
-
-function ensureTokenClient(){
-  if(!(window.google && google.accounts && google.accounts.oauth2)) throw new Error("Google sign-in script hasn't loaded — check your internet connection and reload.");
-  if(driveTokenClient && driveTokenClient._cid===driveConfig.clientId) return driveTokenClient;
-  driveTokenClient=google.accounts.oauth2.initTokenClient({
-    client_id: driveConfig.clientId, scope: DRIVE_SCOPE, callback:()=>{}
-  });
-  driveTokenClient._cid=driveConfig.clientId;
-  return driveTokenClient;
-}
-function requestDriveToken(){
-  return new Promise((resolve,reject)=>{
-    if(!driveConfig.clientId){ reject(new Error("No Client ID saved yet")); return; }
-    let tc; try{ tc=ensureTokenClient(); }catch(e){ reject(e); return; }
-    tc.callback=(resp)=>{
-      if(resp.error){ reject(new Error(resp.error==="popup_closed"?"Sign-in was closed":resp.error)); return; }
-      driveAccessToken=resp.access_token;
-      driveTokenExpiresAt=Date.now()+((resp.expires_in||3600)*1000)-30000;
-      resolve(driveAccessToken);
-    };
-    tc.requestAccessToken({prompt:""});
-  });
-}
-async function getValidToken(){
-  if(driveAccessToken && Date.now()<driveTokenExpiresAt) return driveAccessToken;
-  return requestDriveToken();
-}
-function isDriveConnected(){ return !!driveAccessToken && Date.now()<driveTokenExpiresAt; }
-
-async function driveFetch(url, opts={}){
-  const token=await getValidToken();
-  const headers=Object.assign({}, opts.headers||{}, {Authorization:"Bearer "+token});
-  const res=await fetch(url, Object.assign({}, opts, {headers}));
-  if(!res.ok){
-    let detail=""; try{ detail=(await res.json()).error.message||""; }catch(e){}
-    throw new Error("Drive error "+res.status+(detail?": "+detail:""));
-  }
-  return res;
-}
-async function findOrCreateFolder(){
-  if(driveConfig.folderId) return driveConfig.folderId;
-  const q=encodeURIComponent(`name='${DRIVE_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false and 'root' in parents`);
-  const data=await (await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`)).json();
-  if(data.files && data.files.length){ driveConfig.folderId=data.files[0].id; persistDriveConfig(); return driveConfig.folderId; }
-  const created=await (await driveFetch("https://www.googleapis.com/drive/v3/files",{
-    method:"POST", headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({name:DRIVE_FOLDER_NAME, mimeType:"application/vnd.google-apps.folder"})
-  })).json();
-  driveConfig.folderId=created.id; persistDriveConfig();
-  return driveConfig.folderId;
-}
-async function findFile(name, folderId){
-  const q=encodeURIComponent(`name='${name}' and '${folderId}' in parents and trashed=false`);
-  const data=await (await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc`)).json();
-  return (data.files && data.files[0]) || null;
-}
-async function listVersionFiles(folderId){
-  const q=encodeURIComponent(`name contains 'brim-lineups-v' and '${folderId}' in parents and trashed=false`);
-  const data=await (await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,createdTime)&orderBy=createdTime desc`)).json();
-  return data.files||[];
-}
-async function createJsonFile(name, folderId, obj){
-  const boundary="brimb"+uid();
-  const metadata={name, parents:[folderId]};
-  const body=`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`
-            +`--${boundary}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(obj)}\r\n--${boundary}--`;
-  return (await driveFetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,modifiedTime,createdTime",{
-    method:"POST", headers:{"Content-Type":`multipart/related; boundary=${boundary}`}, body
-  })).json();
-}
-async function updateJsonFile(fileId, obj){
-  return (await driveFetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media&fields=id,modifiedTime`,{
-    method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify(obj)
-  })).json();
-}
-async function downloadJsonFile(fileId){
-  return (await driveFetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`)).json();
-}
-
-/* ---- actions ---- */
-async function driveConnect(){
-  if(!driveConfig.clientId){ toast("Paste your Client ID first",true); return; }
-  try{ await requestDriveToken(); toast("Connected to Google Drive ✓"); renderDriveModal(); }
-  catch(e){ toast(e.message||"Couldn't connect",true,4500); }
-}
-async function driveSyncNow(){
-  if(!navigator.onLine){ toast("You're offline — using the version saved on this device",true); return; }
+function detectRepoFromUrl(){
   try{
-    await getValidToken();
-    const folderId=await findOrCreateFolder();
-    const remote=await findFile(DRIVE_CURRENT_FILE, folderId);
-    if(remote){
-      driveConfig.currentFileId=remote.id;
-      const remoteTime=new Date(remote.modifiedTime).getTime();
-      if(remoteTime > (driveConfig.lastSyncedAt||0)+2000){
-        const useDrive=confirm(
-          "Drive has a save from "+new Date(remoteTime).toLocaleString()+".\n\n"+
-          "OK = load Drive's version onto this device (replaces what you see now)\n"+
-          "Cancel = push this device's version up to Drive instead"
-        );
-        if(useDrive){
-          const data=await downloadJsonFile(remote.id);
-          if(data && Array.isArray(data.maps)){
-            state=data; ui.activeMapId=state.maps[0]?state.maps[0].id:null; ui.armedPlantId=null;
-            persist(); driveConfig.lastSyncedAt=Date.now(); persistDriveConfig();
-            renderAll(); toast("Loaded latest from Drive ✓"); renderDriveModal(); return;
-          }
-        }
-      }
-      const updated=await updateJsonFile(remote.id, state);
-      driveConfig.lastSyncedAt=new Date(updated.modifiedTime).getTime(); persistDriveConfig();
-      toast("Synced to Drive ✓");
-    }else{
-      const created=await createJsonFile(DRIVE_CURRENT_FILE, folderId, state);
-      driveConfig.currentFileId=created.id;
-      driveConfig.lastSyncedAt=new Date(created.modifiedTime).getTime(); persistDriveConfig();
-      toast("Uploaded to Drive ✓");
+    const m=location.hostname.match(/^([^.]+)\.github\.io$/i);
+    if(m){
+      const owner=m[1];
+      const seg=location.pathname.split("/").filter(Boolean);
+      const repo=seg.length ? seg[0] : (owner+".github.io");
+      return {owner, repo};
     }
-    renderDriveModal();
-  }catch(e){ toast("Sync failed — "+(e.message||""),true,4500); }
+  }catch(e){}
+  return null;
 }
-async function driveSaveVersion(){
-  if(!navigator.onLine){ toast("You're offline",true); return; }
+async function loadSyncConfig(){
+  try{ const c=await idbGet(GH_CFG_KEY); if(c) ghConfig=Object.assign(ghConfig,c); }catch(e){}
+  if(!ghConfig.owner || !ghConfig.repo){
+    const d=detectRepoFromUrl();
+    if(d){ ghConfig.owner=ghConfig.owner||d.owner; ghConfig.repo=ghConfig.repo||d.repo; }
+  }
+}
+function persistSyncConfig(){ idbSet(GH_CFG_KEY, ghConfig).catch(()=>{}); }
+function ghReady(){ return !!(ghConfig.token && ghConfig.owner && ghConfig.repo); }
+
+function utf8ToB64(str){ return btoa(unescape(encodeURIComponent(str))); }
+function b64ToUtf8(b64){ return decodeURIComponent(escape(atob(String(b64).replace(/\s/g,"")))); }
+
+async function ghApi(path, opts={}){
+  const headers=Object.assign({
+    "Authorization":"Bearer "+ghConfig.token,
+    "Accept":"application/vnd.github+json",
+    "X-GitHub-Api-Version":"2022-11-28"
+  }, opts.headers||{});
+  return fetch("https://api.github.com"+path, Object.assign({}, opts, {headers}));
+}
+async function ghGetFile(){
+  const res=await ghApi(`/repos/${ghConfig.owner}/${ghConfig.repo}/contents/${encodeURIComponent(ghConfig.path)}?ref=${encodeURIComponent(ghConfig.branch)}&t=${Date.now()}`);
+  if(res.status===404) return {exists:false};
+  if(res.status===401) throw new Error("Token rejected (401) — check it is correct and not expired");
+  if(res.status===403) throw new Error("Access denied (403) — the token needs Contents: Read & write on this repo");
+  if(!res.ok){ let m=""; try{ m=(await res.json()).message||""; }catch(e){} throw new Error("GitHub "+res.status+(m?": "+m:"")); }
+  const data=await res.json();
+  let obj=null;
+  try{ obj=JSON.parse(b64ToUtf8(data.content)); }catch(e){ throw new Error("The repo file is not valid lineup data"); }
+  return {exists:true, sha:data.sha, data:obj};
+}
+async function ghPutFile(stateObj, sha, message){
+  const body={ message: message||("Update lineups "+new Date().toISOString()), content: utf8ToB64(JSON.stringify(stateObj)), branch: ghConfig.branch };
+  if(sha) body.sha=sha;
+  const res=await ghApi(`/repos/${ghConfig.owner}/${ghConfig.repo}/contents/${encodeURIComponent(ghConfig.path)}`,{ method:"PUT", body:JSON.stringify(body) });
+  if(res.status===409) throw new Error("conflict");
+  if(res.status===404) throw new Error("Repo or branch not found — check the owner, repo and branch");
+  if(res.status===401) throw new Error("Token rejected (401) — check it is correct and not expired");
+  if(res.status===403) throw new Error("Access denied (403) — the token needs Contents: Read & write on this repo");
+  if(!res.ok){ let m=""; try{ m=(await res.json()).message||""; }catch(e){} throw new Error("GitHub "+res.status+(m?": "+m:"")); }
+  return (await res.json()).content.sha;
+}
+async function ghSyncNow(){
+  if(!ghReady()){ toast("Add your token first",true); return; }
+  if(!navigator.onLine){ toast("You are offline — using the copy saved on this device",true); return; }
   try{
-    await getValidToken();
-    const folderId=await findOrCreateFolder();
-    const versions=await listVersionFiles(folderId);
-    let maxV=0; versions.forEach(f=>{ const m=f.name.match(/v(\d+)\.json$/); if(m) maxV=Math.max(maxV,parseInt(m[1],10)); });
-    const name=`brim-lineups-v${maxV+1}.json`;
-    await createJsonFile(name, folderId, state);
-    toast("Saved as "+name+" on Drive ✓");
-    renderVersionHistory();
-  }catch(e){ toast("Couldn't save version — "+(e.message||""),true,4500); }
+    const remote=await ghGetFile();
+    if(!remote.exists){
+      const sha=await ghPutFile(state, null, "Create lineups data");
+      ghConfig.lastSha=sha; ghConfig.lastSyncedAt=Date.now(); persistSyncConfig();
+      toast("Uploaded to GitHub ✓"); renderSyncModal(); return;
+    }
+    if(remote.sha===ghConfig.lastSha){
+      const sha=await ghPutFile(state, remote.sha, "Update lineups");
+      ghConfig.lastSha=sha; ghConfig.lastSyncedAt=Date.now(); persistSyncConfig();
+      toast("Synced to GitHub ✓"); renderSyncModal(); return;
+    }
+    const pull=confirm(
+      "The repo has changes newer than this device's last sync.\n\n"+
+      "OK = pull the repo's version onto this device (replaces what you see now)\n"+
+      "Cancel = push this device's version, overwriting the repo"
+    );
+    if(pull){
+      state=remote.data; normalizeState();
+      ui.activeMapId=state.maps[0]?state.maps[0].id:null; ui.armedPlantId=null; ui.activeAgent="All";
+      ghConfig.lastSha=remote.sha; ghConfig.lastSyncedAt=Date.now(); persistSyncConfig();
+      persist(); renderAll(); toast("Pulled latest from GitHub ✓"); renderSyncModal();
+    }else{
+      const sha=await ghPutFile(state, remote.sha, "Update lineups (override)");
+      ghConfig.lastSha=sha; ghConfig.lastSyncedAt=Date.now(); persistSyncConfig();
+      toast("Pushed to GitHub ✓"); renderSyncModal();
+    }
+  }catch(e){
+    if(e.message==="conflict"){ toast("The repo changed a moment ago — tap Sync again",true,4000); renderSyncModal(); }
+    else toast("Sync failed — "+(e.message||""),true,5200);
+  }
 }
-async function driveRestoreVersion(fileId, label){
-  if(!confirm(`Restore "${label}"? This replaces what's on this device now.`)) return;
+async function ghListCommits(){
+  const res=await ghApi(`/repos/${ghConfig.owner}/${ghConfig.repo}/commits?path=${encodeURIComponent(ghConfig.path)}&per_page=25&t=${Date.now()}`);
+  if(!res.ok) throw new Error("Could not load history ("+res.status+")");
+  return res.json();
+}
+async function ghRestoreCommit(sha, label){
+  if(!confirm(`Restore the version from ${label}? This replaces what is on this device now — tap Sync afterward to push it to the repo.`)) return;
   try{
-    const data=await downloadJsonFile(fileId);
-    if(!data || !Array.isArray(data.maps)) throw new Error("That file isn't valid lineup data");
-    state=data; ui.activeMapId=state.maps[0]?state.maps[0].id:null; ui.armedPlantId=null;
-    persist(); renderAll();
-    toast("Restored ✓ — tap Sync now to push it as Drive's current save");
-  }catch(e){ toast(e.message||"Couldn't restore that version",true); }
+    const res=await ghApi(`/repos/${ghConfig.owner}/${ghConfig.repo}/contents/${encodeURIComponent(ghConfig.path)}?ref=${sha}`);
+    if(!res.ok) throw new Error("Could not fetch that version ("+res.status+")");
+    const obj=JSON.parse(b64ToUtf8((await res.json()).content));
+    if(!obj || !Array.isArray(obj.maps)) throw new Error("That version is not valid lineup data");
+    state=obj; normalizeState();
+    ui.activeMapId=state.maps[0]?state.maps[0].id:null; ui.armedPlantId=null; ui.activeAgent="All";
+    persist(); renderAll(); toast("Restored ✓ — tap Sync now to push it");
+  }catch(e){ toast(e.message||"Could not restore",true,4500); }
 }
-function driveDisconnect(){
-  try{ if(driveAccessToken) google.accounts.oauth2.revoke(driveAccessToken,()=>{}); }catch(e){}
-  driveAccessToken=null; driveTokenExpiresAt=0;
-  toast("Disconnected from Drive"); renderDriveModal();
+function ghDisconnect(){
+  ghConfig.token=""; ghConfig.lastSha=null; persistSyncConfig();
+  toast("Token removed from this device"); renderSyncModal();
 }
 
-/* ---- Drive modal rendering ---- */
-function renderDriveModal(){
-  const body=$("#driveBody"); if(!body) return;
-  if(!driveConfig.clientId){
+/* ---- sync modal UI ---- */
+function renderSyncModal(){
+  const body=$("#syncBody"); if(!body) return;
+  const isPages=!!detectRepoFromUrl();
+  if(!ghReady()){
     body.innerHTML=`
-      <p class="modal-note">One-time setup: create a free Google OAuth Client ID so this app can sync to <b>your own</b> Drive. See the steps in chat, then paste the ID below.</p>
-      <div class="field"><label>Google OAuth Client ID</label>
-        <input type="text" id="driveClientIdInput" placeholder="xxxxxxxxxxxx.apps.googleusercontent.com"></div>
-      <button class="btn-primary" id="saveClientIdBtn" style="width:100%">Save Client ID</button>`;
-    $("#saveClientIdBtn").onclick=()=>{
-      const v=$("#driveClientIdInput").value.trim();
-      if(!v){ toast("Paste your Client ID first",true); return; }
-      driveConfig.clientId=v; persistDriveConfig(); renderDriveModal();
+      <p class="modal-note">Sync your lineups through your own GitHub repo — two-way on every device, no Google. Paste a fine-grained token with <b>Contents: Read &amp; write</b> on this repo. Setup steps are in the chat.</p>
+      <div class="field"><label>Repo owner (your username)</label>
+        <input type="text" id="ghOwner" placeholder="your-github-username" value="${escapeHtml(ghConfig.owner||"")}"></div>
+      <div class="field"><label>Repo name</label>
+        <input type="text" id="ghRepo" placeholder="brim-lineups" value="${escapeHtml(ghConfig.repo||"")}"></div>
+      <div class="field"><label>GitHub token</label>
+        <input type="text" id="ghToken" class="code-area" style="min-height:0;height:auto;padding:11px 12px" placeholder="github_pat_..." autocomplete="off"></div>
+      ${isPages?`<div class="hint" style="margin-bottom:12px">Owner &amp; repo were auto-filled from this page's address — only change them if the data should live in a different repo.</div>`:``}
+      <button class="btn-primary" id="ghSaveBtn" style="width:100%">Save &amp; connect</button>`;
+    $("#ghSaveBtn").onclick=()=>{
+      const owner=$("#ghOwner").value.trim(), repo=$("#ghRepo").value.trim(), token=$("#ghToken").value.trim();
+      if(!owner||!repo){ toast("Enter the repo owner and name",true); return; }
+      if(!token){ toast("Paste your token",true); return; }
+      ghConfig.owner=owner; ghConfig.repo=repo; ghConfig.token=token; ghConfig.lastSha=null;
+      persistSyncConfig(); renderSyncModal(); toast("Saved — tap Sync now");
     };
     return;
   }
-  const connected=isDriveConnected();
   body.innerHTML=`
-    <div class="drive-status ${connected?'on':''}"><span class="dot2"></span><span>${connected?'Connected':'Not connected'} · last synced ${timeAgo(driveConfig.lastSyncedAt)}</span></div>
+    <div class="drive-status on"><span class="dot2"></span><span>Connected · ${escapeHtml(ghConfig.owner)}/${escapeHtml(ghConfig.repo)} · synced ${timeAgo(ghConfig.lastSyncedAt)}</span></div>
     <div class="dual-btn" style="margin-top:12px">
-      ${connected?'':'<button class="btn-primary" id="driveConnectBtn">Connect to Drive</button>'}
-      ${connected?'<button class="btn-primary" id="driveSyncBtn">Sync now</button><button class="btn-ghost" id="driveVersionBtn">Save new version</button>':''}
+      <button class="btn-primary" id="ghSyncBtn">Sync now</button>
+      <button class="btn-ghost" id="ghHistoryBtn">Version history</button>
     </div>
-    ${connected?'<button class="btn-ghost" id="driveHistoryBtn" style="width:100%;margin-top:10px">View version history</button>':''}
-    <div id="driveHistoryList"></div>
+    <div id="ghHistoryList"></div>
     <div class="form-actions">
-      <button class="btn-ghost" id="driveChangeIdBtn">Change Client ID</button>
-      ${connected?'<button class="del-btn" id="driveDisconnectBtn">Disconnect</button>':''}
+      <button class="btn-ghost" id="ghChangeBtn">Change repo / token</button>
+      <button class="del-btn" id="ghDisconnectBtn">Remove token</button>
     </div>`;
-  if(connected){
-    $("#driveSyncBtn").onclick=driveSyncNow;
-    $("#driveVersionBtn").onclick=driveSaveVersion;
-    $("#driveHistoryBtn").onclick=renderVersionHistory;
-    $("#driveDisconnectBtn").onclick=driveDisconnect;
-  }else{
-    $("#driveConnectBtn").onclick=driveConnect;
-  }
-  $("#driveChangeIdBtn").onclick=()=>{
-    if(!confirm("Clear the saved Client ID? You'll need to paste it again to reconnect.")) return;
-    driveConfig={clientId:"",folderId:null,currentFileId:null,lastSyncedAt:0}; persistDriveConfig();
-    driveAccessToken=null; driveTokenExpiresAt=0;
-    renderDriveModal();
-  };
+  $("#ghSyncBtn").onclick=ghSyncNow;
+  $("#ghHistoryBtn").onclick=renderCommitHistory;
+  $("#ghDisconnectBtn").onclick=ghDisconnect;
+  $("#ghChangeBtn").onclick=()=>{ if(!confirm("Re-enter the repo and token?")) return; ghConfig.token=""; persistSyncConfig(); renderSyncModal(); };
 }
-async function renderVersionHistory(){
-  const list=$("#driveHistoryList"); if(!list) return;
-  list.innerHTML='<div class="hint" style="margin-top:12px">Loading versions…</div>';
+async function renderCommitHistory(){
+  const list=$("#ghHistoryList"); if(!list) return;
+  list.innerHTML='<div class="hint" style="margin-top:12px">Loading history…</div>';
   try{
-    await getValidToken();
-    const folderId=await findOrCreateFolder();
-    const files=await listVersionFiles(folderId);
-    if(!files.length){ list.innerHTML='<div class="hint" style="margin-top:12px">No saved versions yet — tap "Save new version" to create your first snapshot.</div>'; return; }
-    list.innerHTML='<div class="notes"><div class="h">Saved versions</div></div>'+files.map(f=>{
-      const m=f.name.match(/v(\d+)\.json$/); const vnum=m?m[1]:"?";
-      const date=new Date(f.createdTime).toLocaleString();
-      return `<div class="version-row"><div><b>v${vnum}</b><span class="vdate">${escapeHtml(date)}</span></div>
-        <button class="btn-ghost small" data-restore="${f.id}" data-label="v${vnum} (${date})">Restore</button></div>`;
+    const commits=await ghListCommits();
+    if(!commits.length){ list.innerHTML='<div class="hint" style="margin-top:12px">No history yet — tap Sync now to make your first save.</div>'; return; }
+    list.innerHTML='<div class="notes"><div class="h">Every sync is a restore point</div></div>'+commits.map(c=>{
+      const date=new Date(c.commit.author.date).toLocaleString();
+      const msg=(c.commit.message||"").slice(0,42);
+      return `<div class="version-row"><div><b>${escapeHtml(date)}</b><span class="vdate">${escapeHtml(msg)}</span></div><button class="btn-ghost small" data-sha="${c.sha}" data-label="${escapeHtml(date)}">Restore</button></div>`;
     }).join("");
-    list.querySelectorAll("[data-restore]").forEach(btn=>{
-      btn.onclick=()=>driveRestoreVersion(btn.getAttribute("data-restore"), btn.getAttribute("data-label"));
-    });
-  }catch(e){ list.innerHTML='<div class="hint" style="margin-top:12px;color:var(--red-2)">Couldn\'t load versions — '+escapeHtml(e.message||"")+'</div>'; }
+    list.querySelectorAll("[data-sha]").forEach(b=>{ b.onclick=()=>ghRestoreCommit(b.getAttribute("data-sha"), b.getAttribute("data-label")); });
+  }catch(e){ list.innerHTML='<div class="hint" style="margin-top:12px;color:var(--red-2)">'+escapeHtml(e.message||"Could not load history")+'</div>'; }
 }
-$("#driveMenuBtn").onclick=()=>{ $("#dataMenu").classList.remove("show"); renderDriveModal(); openScrim("driveScrim"); };
+$("#syncMenuBtn").onclick=()=>{ $("#dataMenu").classList.remove("show"); renderSyncModal(); openScrim("syncScrim"); };
 
 /* ---------- boot ---------- */
 (async function boot(){
   await loadState();
   normalizeState();
-  await loadDriveConfig();
+  await loadSyncConfig();
   if(state.maps.length) ui.activeMapId=state.maps[0].id;
   await updateMeter();
   renderAll();
