@@ -1404,16 +1404,28 @@ async function ghApi(path, opts={}){
   }, opts.headers||{});
   return fetch("https://api.github.com"+path, Object.assign({}, opts, {headers}));
 }
-async function ghGetFile(){
-  const res=await ghApi(`/repos/${ghConfig.owner}/${ghConfig.repo}/contents/${encodeURIComponent(ghConfig.path)}?ref=${encodeURIComponent(ghConfig.branch)}&t=${Date.now()}`);
+async function ghGetMeta(ref){
+  // returns {exists, sha} — the Contents API always returns the blob sha, even
+  // for files >1MB (where it blanks the inline content). We read content separately.
+  const r=ref || ghConfig.branch;
+  const res=await ghApi(`/repos/${ghConfig.owner}/${ghConfig.repo}/contents/${encodeURIComponent(ghConfig.path)}?ref=${encodeURIComponent(r)}&t=${Date.now()}`);
   if(res.status===404) return {exists:false};
   if(res.status===401) throw new Error("Token rejected (401) — check it is correct and not expired");
   if(res.status===403) throw new Error("Access denied (403) — the token needs Contents: Read & write on this repo");
   if(!res.ok){ let m=""; try{ m=(await res.json()).message||""; }catch(e){} throw new Error("GitHub "+res.status+(m?": "+m:"")); }
   const data=await res.json();
-  let obj=null;
-  try{ obj=JSON.parse(b64ToUtf8(data.content)); }catch(e){ throw new Error("The repo file is not valid lineup data"); }
-  return {exists:true, sha:data.sha, data:obj};
+  return {exists:true, sha:data.sha};
+}
+async function ghReadBlob(sha){
+  // Blobs API returns base64 content for files up to 100MB (Contents API caps at 1MB).
+  const res=await ghApi(`/repos/${ghConfig.owner}/${ghConfig.repo}/git/blobs/${sha}`);
+  if(!res.ok){ let m=""; try{ m=(await res.json()).message||""; }catch(e){} throw new Error("Couldn't read repo file ("+res.status+(m?": "+m:"")+")"); }
+  const data=await res.json();
+  const text = data.encoding==="base64" ? b64ToUtf8(data.content) : (data.content||"");
+  if(!text || !text.trim()) throw new Error("The repo file came back empty");
+  let obj; try{ obj=JSON.parse(text); }catch(e){ throw new Error("The repo file is not valid lineup data"); }
+  if(!obj || !Array.isArray(obj.maps)) throw new Error("The repo file is not valid lineup data");
+  return obj;
 }
 async function ghPutFile(stateObj, sha, message){
   const body={ message: message||("Update lineups "+new Date().toISOString()), content: utf8ToB64(JSON.stringify(stateObj)), branch: ghConfig.branch };
@@ -1430,7 +1442,7 @@ async function ghSyncNow(){
   if(!ghReady()){ toast("Add your token first",true); return; }
   if(!navigator.onLine){ toast("You are offline — using the copy saved on this device",true); return; }
   try{
-    const remote=await ghGetFile();
+    const remote=await ghGetMeta();
     if(!remote.exists){
       const sha=await ghPutFile(state, null, "Create lineups data");
       ghConfig.lastSha=sha; ghConfig.lastSyncedAt=Date.now(); persistSyncConfig();
@@ -1447,7 +1459,8 @@ async function ghSyncNow(){
       "Cancel = push this device's version, overwriting the repo"
     );
     if(pull){
-      state=remote.data; normalizeState();
+      const remoteObj=await ghReadBlob(remote.sha);
+      state=remoteObj; normalizeState();
       ui.activeMapId=state.maps[0]?state.maps[0].id:null; ui.armedPlantId=null; ui.activeAgent="All";
       ghConfig.lastSha=remote.sha; ghConfig.lastSyncedAt=Date.now(); persistSyncConfig();
       persist(); renderAll(); toast("Pulled latest from GitHub ✓"); renderSyncModal();
@@ -1469,10 +1482,9 @@ async function ghListCommits(){
 async function ghRestoreCommit(sha, label){
   if(!confirm(`Restore the version from ${label}? This replaces what is on this device now — tap Sync afterward to push it to the repo.`)) return;
   try{
-    const res=await ghApi(`/repos/${ghConfig.owner}/${ghConfig.repo}/contents/${encodeURIComponent(ghConfig.path)}?ref=${sha}`);
-    if(!res.ok) throw new Error("Could not fetch that version ("+res.status+")");
-    const obj=JSON.parse(b64ToUtf8((await res.json()).content));
-    if(!obj || !Array.isArray(obj.maps)) throw new Error("That version is not valid lineup data");
+    const meta=await ghGetMeta(sha);           // blob sha of the file at that commit
+    if(!meta.exists) throw new Error("That version has no data file");
+    const obj=await ghReadBlob(meta.sha);       // handles files over 1MB
     state=obj; normalizeState();
     ui.activeMapId=state.maps[0]?state.maps[0].id:null; ui.armedPlantId=null; ui.activeAgent="All";
     persist(); renderAll(); toast("Restored ✓ — tap Sync now to push it");
