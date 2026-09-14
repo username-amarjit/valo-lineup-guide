@@ -269,6 +269,14 @@
   .shots.n3 .cell3 img{width:50%}
   .shots .noimg{padding:44px 20px;text-align:center;color:var(--text-faint);font-family:var(--font-mono);font-size:11px;grid-column:1 / -1}
   @media(max-width:520px){ .shots .cell img{max-height:none} .shots.n3 .cell3 img{width:100%} }
+  .synctag{position:fixed;left:12px;bottom:12px;z-index:35;display:flex;align-items:center;gap:7px;
+    background:var(--surface-2);border:1px solid var(--line);padding:6px 11px;cursor:pointer;max-width:64vw;
+    font-family:var(--font-mono);font-size:10px;letter-spacing:.03em;color:var(--text-dim);transition:.15s;
+    clip-path:polygon(0 0,100% 0,100% 100%,8px 100%,0 calc(100% - 8px))}
+  .synctag:hover{border-color:var(--amber);color:var(--text)}
+  .synctag .sdot{width:7px;height:7px;flex:none;border-radius:50%;background:var(--amber);box-shadow:0 0 7px var(--amber)}
+  .synctag .sname{color:var(--amber-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .synctag .stime{flex:none;color:var(--text-faint)}
   .meta-chip{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);display:inline-flex;align-items:center;gap:6px;margin-top:14px;padding:5px 9px;background:var(--surface-2);border:1px solid var(--line)}
   .meta-chip b{color:var(--red-2)}
 
@@ -393,7 +401,7 @@
 
   <div class="foot">
     <b>SPIKE PLANT</b> ◆ RED &nbsp;·&nbsp; <b>FIRING POSITION</b> ✛ AMBER<br>
-    GITHUB SYNC · BUILD 2026.09.13-B (large-file read fix)
+    GITHUB SYNC · BUILD 2026.09.14-C2 (named saves)
   </div>
 </div>
 
@@ -588,6 +596,7 @@
 </div>
 
 <input type="file" id="importFile" accept="application/json,.json" hidden>
+<div class="synctag" id="syncTag" style="display:none"></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -652,6 +661,7 @@ function idbSet(key,val){
 
 /* ---------- persistence ---------- */
 function normalizeState(){
+  if(!state.syncLabels || typeof state.syncLabels!=="object" || Array.isArray(state.syncLabels)) state.syncLabels={};
   (state.maps||[]).forEach(m=>{
     (m.plants||[]).forEach(p=>{
       if(!p.agent || !String(p.agent).trim()) p.agent="Brimstone";
@@ -1369,7 +1379,7 @@ function timeAgo(ts){
    ========================================================== */
 const GH_CFG_KEY="githubSyncConfig";
 const GH_DATA_PATH="lineups-data.json";
-let ghConfig={ token:"", owner:"", repo:"", branch:"main", path:GH_DATA_PATH, lastSha:null, lastSyncedAt:0 };
+let ghConfig={ token:"", owner:"", repo:"", branch:"main", path:GH_DATA_PATH, lastSha:null, lastSyncedAt:0, lastSyncName:"" };
 
 function detectRepoFromUrl(){
   try{
@@ -1442,16 +1452,17 @@ async function ghSyncNow(){
   if(!ghReady()){ toast("Add your token first",true); return; }
   if(!navigator.onLine){ toast("You are offline — using the copy saved on this device",true); return; }
   try{
+    const saveName = ($("#ghSaveName") && $("#ghSaveName").value.trim()) || "";
     const remote=await ghGetMeta();
     if(!remote.exists){
-      const sha=await ghPutFile(state, null, "Create lineups data");
-      ghConfig.lastSha=sha; ghConfig.lastSyncedAt=Date.now(); persistSyncConfig();
-      toast("Uploaded to GitHub ✓"); renderSyncModal(); return;
+      const sha=await ghPutFile(state, null, saveName||"Create lineups data");
+      ghConfig.lastSha=sha; ghConfig.lastSyncedAt=Date.now(); ghConfig.lastSyncName=saveName; persistSyncConfig();
+      toast("Uploaded to GitHub ✓"); renderSyncModal(); renderSyncTag(); return;
     }
     if(remote.sha===ghConfig.lastSha){
-      const sha=await ghPutFile(state, remote.sha, "Update lineups");
-      ghConfig.lastSha=sha; ghConfig.lastSyncedAt=Date.now(); persistSyncConfig();
-      toast("Synced to GitHub ✓"); renderSyncModal(); return;
+      const sha=await ghPutFile(state, remote.sha, saveName||"Update lineups");
+      ghConfig.lastSha=sha; ghConfig.lastSyncedAt=Date.now(); ghConfig.lastSyncName=saveName; persistSyncConfig();
+      toast("Synced to GitHub ✓"); renderSyncModal(); renderSyncTag(); return;
     }
     const pull=confirm(
       "The repo has changes newer than this device's last sync.\n\n"+
@@ -1462,12 +1473,12 @@ async function ghSyncNow(){
       const remoteObj=await ghReadBlob(remote.sha);
       state=remoteObj; normalizeState();
       ui.activeMapId=state.maps[0]?state.maps[0].id:null; ui.armedPlantId=null; ui.activeAgent="All";
-      ghConfig.lastSha=remote.sha; ghConfig.lastSyncedAt=Date.now(); persistSyncConfig();
-      persist(); renderAll(); toast("Pulled latest from GitHub ✓"); renderSyncModal();
+      ghConfig.lastSha=remote.sha; ghConfig.lastSyncedAt=Date.now(); ghConfig.lastSyncName="pulled from repo"; persistSyncConfig();
+      persist(); renderAll(); toast("Pulled latest from GitHub ✓"); renderSyncModal(); renderSyncTag();
     }else{
-      const sha=await ghPutFile(state, remote.sha, "Update lineups (override)");
-      ghConfig.lastSha=sha; ghConfig.lastSyncedAt=Date.now(); persistSyncConfig();
-      toast("Pushed to GitHub ✓"); renderSyncModal();
+      const sha=await ghPutFile(state, remote.sha, saveName||"Update lineups (override)");
+      ghConfig.lastSha=sha; ghConfig.lastSyncedAt=Date.now(); ghConfig.lastSyncName=saveName; persistSyncConfig();
+      toast("Pushed to GitHub ✓"); renderSyncModal(); renderSyncTag();
     }
   }catch(e){
     if(e.message==="conflict"){ toast("The repo changed a moment ago — tap Sync again",true,4000); renderSyncModal(); }
@@ -1521,7 +1532,9 @@ function renderSyncModal(){
   }
   body.innerHTML=`
     <div class="drive-status on"><span class="dot2"></span><span>Connected · ${escapeHtml(ghConfig.owner)}/${escapeHtml(ghConfig.repo)} · synced ${timeAgo(ghConfig.lastSyncedAt)}</span></div>
-    <div class="dual-btn" style="margin-top:12px">
+    <div class="field" style="margin:12px 0 10px"><label>Name this save (optional)</label>
+      <input type="text" id="ghSaveName" placeholder="e.g. added Ascent A-site mollies" autocomplete="off"></div>
+    <div class="dual-btn">
       <button class="btn-primary" id="ghSyncBtn">Sync now</button>
       <button class="btn-ghost" id="ghHistoryBtn">Version history</button>
     </div>
@@ -1541,15 +1554,27 @@ async function renderCommitHistory(){
   try{
     const commits=await ghListCommits();
     if(!commits.length){ list.innerHTML='<div class="hint" style="margin-top:12px">No history yet — tap Sync now to make your first save.</div>'; return; }
+    const labels=state.syncLabels||{};
     list.innerHTML='<div class="notes"><div class="h">Every sync is a restore point</div></div>'+commits.map(c=>{
       const date=new Date(c.commit.author.date).toLocaleString();
-      const msg=(c.commit.message||"").slice(0,42);
-      return `<div class="version-row"><div><b>${escapeHtml(date)}</b><span class="vdate">${escapeHtml(msg)}</span></div><button class="btn-ghost small" data-sha="${c.sha}" data-label="${escapeHtml(date)}">Restore</button></div>`;
+      const name=(labels[c.sha] || c.commit.message || "").slice(0,60);
+      return `<div class="version-row">
+        <div style="min-width:0"><b>${escapeHtml(date)}</b><span class="vdate">${escapeHtml(name)}</span></div>
+        <button class="btn-ghost small" data-restore="${c.sha}" data-date="${escapeHtml(date)}">Restore</button></div>`;
     }).join("");
-    list.querySelectorAll("[data-sha]").forEach(b=>{ b.onclick=()=>ghRestoreCommit(b.getAttribute("data-sha"), b.getAttribute("data-label")); });
+    list.querySelectorAll("[data-restore]").forEach(b=>{ b.onclick=()=>ghRestoreCommit(b.getAttribute("data-restore"), b.getAttribute("data-date")); });
   }catch(e){ list.innerHTML='<div class="hint" style="margin-top:12px;color:var(--red-2)">'+escapeHtml(e.message||"Could not load history")+'</div>'; }
 }
 $("#syncMenuBtn").onclick=()=>{ $("#dataMenu").classList.remove("show"); renderSyncModal(); openScrim("syncScrim"); };
+
+function renderSyncTag(){
+  const el=$("#syncTag"); if(!el) return;
+  if(!ghReady() || !ghConfig.lastSyncedAt){ el.style.display="none"; return; }
+  const nm = ghConfig.lastSyncName && ghConfig.lastSyncName.trim() ? ghConfig.lastSyncName.trim() : "synced";
+  el.style.display="flex";
+  el.innerHTML=`<span class="sdot"></span><span class="sname">${escapeHtml(nm)}</span><span class="stime">· ${timeAgo(ghConfig.lastSyncedAt)}</span>`;
+  el.onclick=()=>{ renderSyncModal(); openScrim("syncScrim"); };
+}
 
 /* ---------- boot ---------- */
 (async function boot(){
@@ -1559,6 +1584,8 @@ $("#syncMenuBtn").onclick=()=>{ $("#dataMenu").classList.remove("show"); renderS
   if(state.maps.length) ui.activeMapId=state.maps[0].id;
   await updateMeter();
   renderAll();
+  renderSyncTag();
+  setInterval(renderSyncTag, 60000); // keep the "x min ago" fresh
 })();
 </script>
 </body>
